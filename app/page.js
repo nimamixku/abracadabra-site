@@ -46,6 +46,50 @@ function usePlayBalance() {
   return useContext(PlayBalanceContext);
 }
 
+// ---- click-to-expand full image view ----
+// Cards crop every photo into the same tall frame so the feed looks
+// consistent while scrolling -- but that means part of some images gets
+// trimmed off. This lets a shopper tap the photo to see the whole,
+// uncropped image before they decide to buy.
+const LightboxContext = createContext(null);
+
+function useLightbox() {
+  return useContext(LightboxContext);
+}
+
+function LightboxProvider({ children }) {
+  const [image, setImage] = useState(null); // { src, alt } | null
+
+  useEffect(() => {
+    if (!image) return;
+    function onKey(e) {
+      if (e.key === "Escape") setImage(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [image]);
+
+  return (
+    <LightboxContext.Provider value={{ open: (src, alt) => setImage({ src, alt }) }}>
+      {children}
+      {image && (
+        <div className="lightbox-overlay" onClick={() => setImage(null)}>
+          <button
+            className="lightbox-close"
+            type="button"
+            onClick={() => setImage(null)}
+            aria-label="Close full view"
+          >
+            ✕
+          </button>
+          <img className="lightbox-img" src={image.src} alt={image.alt} />
+          <p className="lightbox-hint">tap the image to go back</p>
+        </div>
+      )}
+    </LightboxContext.Provider>
+  );
+}
+
 function PlayBalanceProvider({ children }) {
   const [plays, setPlays] = useState(0);
   const [lastPaymentIntentId, setLastPaymentIntentId] = useState(null);
@@ -425,6 +469,7 @@ function FeatureCard({ feature }) {
 // leaving the feed.
 function ProductCard({ product }) {
   const stripe = useStripe();
+  const lightbox = useLightbox();
   const [selectedSize, setSelectedSize] = useState(product.sizes ? product.sizes[0] : null);
   const selectedSizeRef = useRef(selectedSize);
   selectedSizeRef.current = selectedSize;
@@ -535,7 +580,12 @@ function ProductCard({ product }) {
         <span className="card-kind">
           {product.type === "digital" ? "Art · digital" : "Clothing · ships"}
         </span>
-        <img src={product.image} alt={product.title} loading="lazy" />
+        <img
+          src={product.image}
+          alt={product.title}
+          loading="lazy"
+          onClick={() => lightbox.open(product.image, product.title)}
+        />
       </div>
       <div className="card-body">
         <div className="card-row">
@@ -598,6 +648,11 @@ function ProductCard({ product }) {
                     },
                   }}
                 />
+                <p className="buy-note">
+                  One-tap buy with Apple Pay or Google Pay — confirm with Face
+                  ID, Touch ID, or your fingerprint. No forms, no typing in a
+                  card number.
+                </p>
               </div>
             )}
             {canApplePay === false && (
@@ -631,6 +686,14 @@ function buildFeedPool() {
   ];
 }
 
+// Hard ceiling on how many cards can pile up in the DOM at once. Without
+// this, "infinite" scroll really was infinite -- every batch added ~95
+// more cards (each with its own images and its own Apple Pay button) and
+// nothing was ever removed, so a long scroll session would slowly eat a
+// phone's memory until the browser killed the tab. Once the cap is hit we
+// just stop adding more; nobody scrolls through 300+ cards in one sitting.
+const MAX_FEED_ITEMS = 300;
+
 function Feed() {
   const [items, setItems] = useState(() =>
     shuffled(buildFeedPool()).map((it, i) => ({ ...it, feedKey: `${it.data.id}-${i}` }))
@@ -639,14 +702,17 @@ function Feed() {
   const batchRef = useRef(1);
 
   const loadMore = useCallback(() => {
-    batchRef.current += 1;
-    setItems((prev) => [
-      ...prev,
-      ...shuffled(buildFeedPool()).map((it, i) => ({
-        ...it,
-        feedKey: `${it.data.id}-${batchRef.current}-${i}`,
-      })),
-    ]);
+    setItems((prev) => {
+      if (prev.length >= MAX_FEED_ITEMS) return prev;
+      batchRef.current += 1;
+      return [
+        ...prev,
+        ...shuffled(buildFeedPool()).map((it, i) => ({
+          ...it,
+          feedKey: `${it.data.id}-${batchRef.current}-${i}`,
+        })),
+      ];
+    });
   }, []);
 
   useEffect(() => {
@@ -690,11 +756,13 @@ export default function Home() {
         </span>
       </div>
       {stripePromise ? (
-        <Elements stripe={stripePromise}>
-          <PlayBalanceProvider>
-            <Feed />
-          </PlayBalanceProvider>
-        </Elements>
+        <LightboxProvider>
+          <Elements stripe={stripePromise}>
+            <PlayBalanceProvider>
+              <Feed />
+            </PlayBalanceProvider>
+          </Elements>
+        </LightboxProvider>
       ) : (
         <p style={{ padding: 20, color: "var(--ink-dim)" }}>
           Add your Stripe publishable key to .env.local to turn on buying —
