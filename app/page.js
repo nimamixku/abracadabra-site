@@ -1,0 +1,706 @@
+"use client";
+
+import { useEffect, useRef, useState, useCallback, createContext, useContext } from "react";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, useStripe, PaymentRequestButtonElement } from "@stripe/react-stripe-js";
+import { PRODUCTS } from "@/lib/products";
+import { PLAY_PACK, FEATURES } from "@/lib/experiences";
+
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null;
+
+const SHIPPING_CENTS = 600;
+const PLAYS_STORAGE_KEY = "abracadabra-plays-v1";
+
+const MARQUEE_PHRASES = [
+  "ABRACADABRA MEANS I CREATE AS I SPEAK",
+  "THE HAND IS QUICKER THAN THE EYE",
+  "NOTHING UP MY SLEEVE",
+  "SAY THE WORD AND WATCH IT APPEAR",
+  "EVERY ENDING IS JUST ANOTHER CARD TRICK",
+  "POOF",
+  "LOOK CLOSER. LOOK AGAIN.",
+];
+
+function shuffled(arr) {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+function formatPrice(cents) {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+// ---- shared play balance (localStorage-backed, no login) ----
+// A $1 purchase grants 3 plays, spendable across any of the three
+// interactive features. See the note at the top of lib/experiences.js
+// for why this lives client-side rather than behind real auth.
+const PlayBalanceContext = createContext(null);
+
+function usePlayBalance() {
+  return useContext(PlayBalanceContext);
+}
+
+function PlayBalanceProvider({ children }) {
+  const [plays, setPlays] = useState(0);
+  const [lastPaymentIntentId, setLastPaymentIntentId] = useState(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(PLAYS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setPlays(parsed.plays || 0);
+        setLastPaymentIntentId(parsed.lastPaymentIntentId || null);
+      }
+    } catch {
+      // start fresh
+    }
+    setLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!loaded) return;
+    try {
+      window.localStorage.setItem(
+        PLAYS_STORAGE_KEY,
+        JSON.stringify({ plays, lastPaymentIntentId })
+      );
+    } catch {
+      // ignore
+    }
+  }, [plays, lastPaymentIntentId, loaded]);
+
+  function addPlays(n, paymentIntentId) {
+    setPlays((p) => p + n);
+    if (paymentIntentId) setLastPaymentIntentId(paymentIntentId);
+  }
+
+  function spend() {
+    let ok = false;
+    setPlays((p) => {
+      if (p > 0) {
+        ok = true;
+        return p - 1;
+      }
+      return p;
+    });
+    return ok;
+  }
+
+  return (
+    <PlayBalanceContext.Provider value={{ plays, addPlays, spend, lastPaymentIntentId }}>
+      {children}
+    </PlayBalanceContext.Provider>
+  );
+}
+
+// A generic Apple-Pay-in-place button, reusable for both a product and the
+// play pack -- calls onSuccess(paymentIntentId) once Stripe confirms.
+function InlineBuyButton({ label, amountCents, onSuccess }) {
+  const stripe = useStripe();
+  const [paymentRequest, setPaymentRequest] = useState(null);
+  const [canApplePay, setCanApplePay] = useState(null);
+  const [status, setStatus] = useState("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    if (!stripe) return;
+    const pr = stripe.paymentRequest({
+      country: "US",
+      currency: "usd",
+      total: { label, amount: amountCents },
+      requestPayerName: true,
+      requestPayerEmail: true,
+    });
+
+    pr.on("paymentmethod", async (ev) => {
+      setStatus("processing");
+      try {
+        const res = await fetch("/api/create-intent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ experienceId: PLAY_PACK.id }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Could not start payment.");
+
+        const confirmResult = await stripe.confirmCardPayment(
+          data.clientSecret,
+          { payment_method: ev.paymentMethod.id },
+          { handleActions: false }
+        );
+        if (confirmResult.error) {
+          ev.complete("fail");
+          setStatus("error");
+          setErrorMsg(confirmResult.error.message || "Payment failed.");
+          return;
+        }
+        ev.complete("success");
+
+        let intent = confirmResult.paymentIntent;
+        if (intent.status === "requires_action") {
+          const second = await stripe.confirmCardPayment(data.clientSecret);
+          if (second.error) {
+            setStatus("error");
+            setErrorMsg(second.error.message || "Payment failed.");
+            return;
+          }
+          intent = second.paymentIntent;
+        }
+
+        const confirmRes = await fetch("/api/confirm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paymentIntentId: intent.id }),
+        });
+        const confirmData = await confirmRes.json();
+        if (!confirmRes.ok) throw new Error(confirmData.error || "Could not confirm purchase.");
+
+        setStatus("success");
+        onSuccess(intent.id);
+      } catch (err) {
+        ev.complete("fail");
+        setStatus("error");
+        setErrorMsg(err.message || "Something went wrong.");
+      }
+    });
+
+    pr.canMakePayment().then((res) => setCanApplePay(!!res));
+    setPaymentRequest(pr);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stripe]);
+
+  if (status === "success") return null;
+
+  return (
+    <div>
+      {canApplePay && paymentRequest && (
+        <PaymentRequestButtonElement
+          options={{
+            paymentRequest,
+            style: { paymentRequestButton: { type: "buy", theme: "dark", height: "48px" } },
+          }}
+        />
+      )}
+      {canApplePay === false && (
+        <p style={{ color: "var(--ink-dim)", fontSize: 13 }}>
+          One-tap buying needs Apple Pay or Google Pay — open this page on an
+          iPhone/Mac in Safari, or Chrome on Android, to buy.
+        </p>
+      )}
+      {status === "processing" && (
+        <p style={{ color: "var(--ink-dim)", fontSize: 13, marginTop: 8 }}>Confirming…</p>
+      )}
+      {status === "error" && (
+        <p style={{ color: "#ff8a8a", fontSize: 13, marginTop: 8 }}>{errorMsg}</p>
+      )}
+    </div>
+  );
+}
+
+function PlayBalanceBadge() {
+  const { plays } = usePlayBalance();
+  return <span className="plays-badge">✦ {plays} play{plays === 1 ? "" : "s"}</span>;
+}
+
+function NoPlaysLeft() {
+  const { addPlays } = usePlayBalance();
+  return (
+    <div>
+      <p style={{ color: "var(--ink-dim)", fontSize: 14, marginBottom: 10 }}>
+        out of plays — {formatPrice(PLAY_PACK.price)} for {PLAY_PACK.playsGranted} more
+      </p>
+      <InlineBuyButton
+        label={PLAY_PACK.title}
+        amountCents={PLAY_PACK.price}
+        onSuccess={(paymentIntentId) => addPlays(PLAY_PACK.playsGranted, paymentIntentId)}
+      />
+    </div>
+  );
+}
+
+// ---- Light a Candle ----
+function CandleFeature() {
+  const { plays, spend } = usePlayBalance();
+  const [text, setText] = useState("");
+  const [lit, setLit] = useState(null);
+
+  function handleLight(e) {
+    e.preventDefault();
+    const value = text.trim();
+    if (!value) return;
+    if (!spend()) return;
+    setLit(value);
+    setText("");
+  }
+
+  return (
+    <div className="feature-body">
+      {lit ? (
+        <div className="candle-result">
+          <div className="candle-flame" aria-hidden="true">
+            <span className="flame-glow" />
+            <span className="flame" />
+          </div>
+          <p className="candle-text">&ldquo;{lit}&rdquo;</p>
+          <p className="candle-note">your candle is lit.</p>
+          {plays > 0 && (
+            <button className="link-btn" type="button" onClick={() => setLit(null)}>
+              light another (uses 1 play)
+            </button>
+          )}
+        </div>
+      ) : plays > 0 ? (
+        <form onSubmit={handleLight} className="feature-form">
+          <input
+            className="feature-input"
+            type="text"
+            placeholder="make a prayer or a wish…"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            maxLength={200}
+          />
+          <button className="buy-btn" type="submit">
+            Light it — uses 1 play
+          </button>
+        </form>
+      ) : (
+        <NoPlaysLeft />
+      )}
+    </div>
+  );
+}
+
+// ---- The Marquee ----
+function MarqueeFeature() {
+  const { plays, spend } = usePlayBalance();
+  const [phrase, setPhrase] = useState(null);
+  const [display, setDisplay] = useState("");
+  const [spinning, setSpinning] = useState(false);
+  const tickRef = useRef(null);
+
+  function scrambleTo(target) {
+    let ticks = 0;
+    const totalTicks = 18;
+    setSpinning(true);
+    clearInterval(tickRef.current);
+    tickRef.current = setInterval(() => {
+      ticks++;
+      if (ticks >= totalTicks) {
+        clearInterval(tickRef.current);
+        setDisplay(target);
+        setSpinning(false);
+        return;
+      }
+      const scrambled = target
+        .split("")
+        .map((ch) => (ch === " " ? " " : String.fromCharCode(65 + Math.floor(Math.random() * 26))))
+        .join("");
+      setDisplay(scrambled);
+    }, 55);
+  }
+
+  function handleFlip() {
+    if (spinning) return;
+    if (!spend()) return;
+    let next = MARQUEE_PHRASES[Math.floor(Math.random() * MARQUEE_PHRASES.length)];
+    if (phrase === next && MARQUEE_PHRASES.length > 1) {
+      next = MARQUEE_PHRASES[(MARQUEE_PHRASES.indexOf(next) + 1) % MARQUEE_PHRASES.length];
+    }
+    setPhrase(next);
+    scrambleTo(next);
+  }
+
+  useEffect(() => () => clearInterval(tickRef.current), []);
+
+  return (
+    <div className="feature-body">
+      <div className="marquee-board">
+        <span className="marquee-text">{display || "· · ·"}</span>
+      </div>
+      {plays > 0 ? (
+        <button className="buy-btn" type="button" onClick={handleFlip} disabled={spinning}>
+          {spinning ? "Flipping…" : "Flip it — uses 1 play"}
+        </button>
+      ) : (
+        <NoPlaysLeft />
+      )}
+    </div>
+  );
+}
+
+// ---- Ask the Oracle ----
+function OracleFeature() {
+  const { plays, spend, lastPaymentIntentId } = usePlayBalance();
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState(null);
+  const [asking, setAsking] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleAsk(e) {
+    e.preventDefault();
+    const text = question.trim();
+    if (!text || asking) return;
+    if (!spend()) return;
+    setAsking(true);
+    setError("");
+    try {
+      const res = await fetch("/api/oracle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: text, paymentIntentId: lastPaymentIntentId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Something went wrong.");
+      setAnswer(data.answer);
+      setQuestion("");
+    } catch (err) {
+      setError(err.message || "Something went wrong.");
+    } finally {
+      setAsking(false);
+    }
+  }
+
+  return (
+    <div className="feature-body">
+      <div className="oracle-window">
+        {asking ? (
+          <p className="oracle-thinking">the oracle is thinking…</p>
+        ) : answer ? (
+          <p className="oracle-answer">{answer}</p>
+        ) : (
+          <p className="oracle-placeholder">✦ ✦ ✦</p>
+        )}
+      </div>
+      {plays > 0 ? (
+        <form onSubmit={handleAsk} className="feature-form">
+          <input
+            className="feature-input"
+            type="text"
+            placeholder="ask the oracle…"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            maxLength={300}
+            disabled={asking}
+          />
+          <button className="buy-btn" type="submit" disabled={asking}>
+            {asking ? "…" : "Ask — uses 1 play"}
+          </button>
+        </form>
+      ) : (
+        <NoPlaysLeft />
+      )}
+      {error && <p style={{ color: "#ff8a8a", fontSize: 13, marginTop: 8 }}>{error}</p>}
+    </div>
+  );
+}
+
+function FeatureCard({ feature }) {
+  return (
+    <div className="card feature-card">
+      <div className="card-body">
+        <div className="card-row">
+          <p className="card-title">✦ {feature.title}</p>
+          <PlayBalanceBadge />
+        </div>
+        <p className="feature-blurb">{feature.blurb}</p>
+        {feature.kind === "candle" && <CandleFeature />}
+        {feature.kind === "marquee" && <MarqueeFeature />}
+        {feature.kind === "oracle" && <OracleFeature />}
+      </div>
+    </div>
+  );
+}
+
+// One scrollable card: its own Apple Pay button, its own size picker (if the
+// product has sizes), its own in-place "purchased" state. Nothing here ever
+// navigates the page away -- the whole point is that buying happens without
+// leaving the feed.
+function ProductCard({ product }) {
+  const stripe = useStripe();
+  const [selectedSize, setSelectedSize] = useState(product.sizes ? product.sizes[0] : null);
+  const selectedSizeRef = useRef(selectedSize);
+  selectedSizeRef.current = selectedSize;
+
+  const [paymentRequest, setPaymentRequest] = useState(null);
+  const [canApplePay, setCanApplePay] = useState(null); // null = still checking
+  const [status, setStatus] = useState("idle"); // idle | processing | success | error
+  const [result, setResult] = useState(null);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    if (!stripe) return;
+
+    const shippingCents = product.type === "physical" ? SHIPPING_CENTS : 0;
+    const pr = stripe.paymentRequest({
+      country: "US",
+      currency: "usd",
+      total: {
+        label: product.title,
+        amount: product.price + shippingCents,
+      },
+      requestPayerName: true,
+      requestPayerEmail: true,
+      requestShipping: product.type === "physical",
+      shippingOptions:
+        product.type === "physical"
+          ? [
+              {
+                id: "standard",
+                label: "Standard Shipping",
+                detail: "5-7 business days, US only",
+                amount: SHIPPING_CENTS,
+              },
+            ]
+          : undefined,
+    });
+
+    pr.on("shippingaddresschange", (ev) => {
+      // Flat one-rate shipping -- any address is fine.
+      ev.updateWith({ status: "success" });
+    });
+
+    pr.on("paymentmethod", async (ev) => {
+      setStatus("processing");
+      try {
+        const res = await fetch("/api/create-intent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            productId: product.id,
+            size: selectedSizeRef.current,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Could not start payment.");
+
+        const confirmResult = await stripe.confirmCardPayment(
+          data.clientSecret,
+          { payment_method: ev.paymentMethod.id },
+          { handleActions: false }
+        );
+
+        if (confirmResult.error) {
+          ev.complete("fail");
+          setStatus("error");
+          setErrorMsg(confirmResult.error.message || "Payment failed.");
+          return;
+        }
+
+        ev.complete("success");
+
+        let intent = confirmResult.paymentIntent;
+        if (intent.status === "requires_action") {
+          const second = await stripe.confirmCardPayment(data.clientSecret);
+          if (second.error) {
+            setStatus("error");
+            setErrorMsg(second.error.message || "Payment failed.");
+            return;
+          }
+          intent = second.paymentIntent;
+        }
+
+        const confirmRes = await fetch("/api/confirm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paymentIntentId: intent.id }),
+        });
+        const confirmData = await confirmRes.json();
+        if (!confirmRes.ok) throw new Error(confirmData.error || "Could not confirm purchase.");
+
+        setResult(confirmData);
+        setStatus("success");
+      } catch (err) {
+        ev.complete("fail");
+        setStatus("error");
+        setErrorMsg(err.message || "Something went wrong.");
+      }
+    });
+
+    pr.canMakePayment().then((res) => setCanApplePay(!!res));
+    setPaymentRequest(pr);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stripe, product.id]);
+
+  return (
+    <div className="card">
+      <div className="card-media">
+        <span className="card-kind">
+          {product.type === "digital" ? "Art · digital" : "Clothing · ships"}
+        </span>
+        <img src={product.image} alt={product.title} loading="lazy" />
+      </div>
+      <div className="card-body">
+        <div className="card-row">
+          <p className="card-title">{product.title}</p>
+          <p className="card-price">{formatPrice(product.price)}</p>
+        </div>
+
+        {product.sizes && status !== "success" && (
+          <div className="size-row">
+            {product.sizes.map((s) => (
+              <button
+                key={s}
+                type="button"
+                className={"size-btn" + (selectedSize === s ? " selected" : "")}
+                onClick={() => setSelectedSize(s)}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {status === "success" && result && (
+          <div style={{ marginTop: 14 }}>
+            {result.type === "digital" ? (
+              <>
+                <a className="buy-btn" href={result.fileUrl} download>
+                  Purchased ✓ — Download full-res TIFF
+                </a>
+                <p className="tiff-note">
+                  Heads up: this file is built for high-quality physical prints,
+                  not for viewing on a phone or laptop screen — it may look soft
+                  or oversized there. That's normal, not a flaw. Open it in a
+                  printing app (or send it to a print shop) to see it at full
+                  quality.
+                </p>
+              </>
+            ) : (
+              <p style={{ color: "var(--success)", fontWeight: 700, margin: 0 }}>
+                Purchased ✓ — shipping your {result.size ? result.size + " " : ""}
+                {result.title.toLowerCase()} soon
+              </p>
+            )}
+          </div>
+        )}
+
+        {status !== "success" && (
+          <>
+            {canApplePay && paymentRequest && (
+              <div style={{ marginTop: 14 }}>
+                <PaymentRequestButtonElement
+                  options={{
+                    paymentRequest,
+                    style: {
+                      paymentRequestButton: {
+                        type: "buy",
+                        theme: "dark",
+                        height: "50px",
+                      },
+                    },
+                  }}
+                />
+              </div>
+            )}
+            {canApplePay === false && (
+              <p style={{ color: "var(--ink-dim)", fontSize: 13, marginTop: 14 }}>
+                One-tap buying needs Apple Pay or Google Pay — open this page on
+                an iPhone/Mac in Safari, or Chrome on Android, to buy.
+              </p>
+            )}
+            {status === "processing" && (
+              <p style={{ color: "var(--ink-dim)", fontSize: 13, marginTop: 10 }}>
+                Confirming your payment…
+              </p>
+            )}
+            {status === "error" && (
+              <p style={{ color: "#ff8a8a", fontSize: 13, marginTop: 10 }}>{errorMsg}</p>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// The feed mixes shop items (art + clothing) with the three paid
+// interactive features, all shuffled together -- so scrolling turns up
+// products and little magic moments in no fixed order, and never runs out.
+function buildFeedPool() {
+  return [
+    ...PRODUCTS.map((p) => ({ feedType: "product", data: p })),
+    ...FEATURES.map((f) => ({ feedType: "feature", data: f })),
+  ];
+}
+
+function Feed() {
+  const [items, setItems] = useState(() =>
+    shuffled(buildFeedPool()).map((it, i) => ({ ...it, feedKey: `${it.data.id}-${i}` }))
+  );
+  const sentinelRef = useRef(null);
+  const batchRef = useRef(1);
+
+  const loadMore = useCallback(() => {
+    batchRef.current += 1;
+    setItems((prev) => [
+      ...prev,
+      ...shuffled(buildFeedPool()).map((it, i) => ({
+        ...it,
+        feedKey: `${it.data.id}-${batchRef.current}-${i}`,
+      })),
+    ]);
+  }, []);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) loadMore();
+        });
+      },
+      { rootMargin: "800px 0px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [loadMore]);
+
+  return (
+    <>
+      <div className="feed">
+        {items.map((item) =>
+          item.feedType === "product" ? (
+            <ProductCard product={item.data} key={item.feedKey} />
+          ) : (
+            <FeatureCard feature={item.data} key={item.feedKey} />
+          )
+        )}
+      </div>
+      <div className="feed-end" ref={sentinelRef} />
+      <p className="loading-more">keep scrolling — it reshuffles</p>
+    </>
+  );
+}
+
+export default function Home() {
+  return (
+    <main className="page">
+      <div className="masthead">
+        <span className="brand">
+          ABRACADABRA <span className="brand-sub">shop</span>
+        </span>
+      </div>
+      {stripePromise ? (
+        <Elements stripe={stripePromise}>
+          <PlayBalanceProvider>
+            <Feed />
+          </PlayBalanceProvider>
+        </Elements>
+      ) : (
+        <p style={{ padding: 20, color: "var(--ink-dim)" }}>
+          Add your Stripe publishable key to .env.local to turn on buying —
+          see .env.local.example.
+        </p>
+      )}
+    </main>
+  );
+}

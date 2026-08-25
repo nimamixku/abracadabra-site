@@ -1,0 +1,460 @@
+:root {
+  --bg: #0b0b0d;
+  --card: #17171b;
+  --card-line: #2a2a30;
+  --ink: #f3f2ee;
+  --ink-dim: #a5a3ab;
+  --accent: #c98bff;
+  --accent-dim: #8a5bc9;
+  --success: #7fd99a;
+  --ease-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --dur-soft: 0.45s;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  font-size: 17px;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+}
+
+.page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 0 120px;
+}
+
+/* ---- masthead ---- */
+.masthead {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(11, 11, 13, 0.85);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--card-line);
+  padding: 18px 20px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.brand {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  background: linear-gradient(90deg, var(--ink), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.brand-sub {
+  font-size: 12px;
+  color: var(--ink-dim);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ---- feed ---- */
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  padding: 20px 16px 0;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--card-line);
+  border-radius: 22px;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(14px);
+  animation: cardIn var(--dur-soft) var(--ease-soft) forwards;
+}
+
+@keyframes cardIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-media {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  background: #000;
+  overflow: hidden;
+  position: relative;
+}
+
+.card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.card-kind {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--ink);
+  padding: 5px 10px;
+  border-radius: 100px;
+  backdrop-filter: blur(4px);
+}
+
+.card-body {
+  padding: 16px 18px 20px;
+}
+
+.card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.card-price {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.size-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.size-btn {
+  border: 1px solid var(--card-line);
+  background: transparent;
+  color: var(--ink);
+  border-radius: 100px;
+  padding: 7px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color var(--dur-soft) var(--ease-soft), background var(--dur-soft) var(--ease-soft);
+  font-family: inherit;
+}
+
+.size-btn.selected {
+  border-color: var(--accent);
+  background: rgba(201, 139, 255, 0.14);
+}
+
+.buy-btn {
+  margin-top: 14px;
+  width: 100%;
+  border: none;
+  border-radius: 14px;
+  padding: 15px 16px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--ink);
+  color: #0b0b0d;
+  transition: transform var(--dur-soft) var(--ease-soft), opacity var(--dur-soft) var(--ease-soft);
+  font-family: inherit;
+}
+
+.buy-btn:active {
+  transform: scale(0.98);
+}
+
+.buy-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.buy-btn.pay-black {
+  background: #000;
+  color: #fff;
+  border: 1px solid #333;
+}
+
+.feed-end {
+  height: 1px;
+}
+
+.loading-more {
+  text-align: center;
+  color: var(--ink-dim);
+  font-size: 13px;
+  padding: 20px 0 6px;
+  letter-spacing: 0.04em;
+}
+
+/* ---- success page ---- */
+.success-wrap {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 60px 22px 80px;
+  text-align: center;
+}
+
+.success-icon {
+  font-size: 44px;
+  margin-bottom: 10px;
+}
+
+.success-title {
+  font-size: 24px;
+  font-weight: 800;
+  margin: 0 0 10px;
+}
+
+.success-desc {
+  color: var(--ink-dim);
+  line-height: 1.6;
+  margin: 0 0 24px;
+}
+
+.download-btn {
+  display: inline-block;
+  background: var(--accent);
+  color: #0b0b0d;
+  font-weight: 700;
+  padding: 14px 26px;
+  border-radius: 14px;
+  text-decoration: none;
+}
+
+.tiff-note {
+  color: var(--ink-dim);
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin: 10px 0 0;
+}
+
+.back-link {
+  display: inline-block;
+  margin-top: 26px;
+  color: var(--ink-dim);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+/* ---- interactive feature cards (oracle / candle / marquee) ---- */
+.feature-card {
+  border-color: rgba(201, 139, 255, 0.28);
+  background: linear-gradient(160deg, var(--card), #1c1720 120%);
+}
+
+.feature-blurb {
+  color: var(--ink-dim);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 6px 0 0;
+}
+
+.feature-body {
+  padding: 16px 18px 20px;
+}
+
+.plays-badge {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  background: rgba(201, 139, 255, 0.14);
+  border: 1px solid rgba(201, 139, 255, 0.3);
+  padding: 5px 10px;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+
+.feature-form {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.feature-input {
+  width: 100%;
+  border: 1px solid var(--card-line);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink);
+  border-radius: 12px;
+  padding: 13px 14px;
+  font-size: 15px;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 44px;
+}
+
+.feature-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.feature-input::placeholder {
+  color: var(--ink-dim);
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  text-decoration: underline;
+}
+
+/* candle / "make a prayer" */
+.candle-result {
+  text-align: center;
+  padding: 6px 4px 4px;
+}
+
+.candle-flame {
+  position: relative;
+  width: 34px;
+  height: 46px;
+  margin: 0 auto 14px;
+}
+
+.flame {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 26px;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  background: linear-gradient(180deg, #fff6d8 0%, #ffd166 45%, #ff8c42 80%, #c9491f 100%);
+  animation: flicker 1.6s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+
+.flame-glow {
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 200, 120, 0.35), transparent 70%);
+  filter: blur(2px);
+  animation: glowPulse 2.2s ease-in-out infinite;
+}
+
+@keyframes flicker {
+  0%, 100% { transform: translateX(-50%) scaleY(1) rotate(0deg); }
+  25% { transform: translateX(-50%) scaleY(1.05) rotate(-2deg); }
+  50% { transform: translateX(-50%) scaleY(0.96) rotate(1deg); }
+  75% { transform: translateX(-50%) scaleY(1.03) rotate(-1deg); }
+}
+
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.candle-text {
+  font-size: 17px;
+  font-style: italic;
+  color: var(--ink);
+  margin: 0 0 6px;
+  line-height: 1.5;
+}
+
+.candle-note {
+  color: var(--ink-dim);
+  font-size: 13px;
+  margin: 0 0 10px;
+}
+
+/* split-flap marquee board */
+.marquee-board {
+  background: #000;
+  border: 1px solid var(--card-line);
+  border-radius: 12px;
+  padding: 22px 16px;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.marquee-text {
+  display: inline-block;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--accent);
+  text-shadow: 0 0 12px rgba(201, 139, 255, 0.5);
+  min-height: 1.2em;
+}
+
+/* oracle booth */
+.oracle-window {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--card-line);
+  border-radius: 12px;
+  padding: 18px 16px;
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.oracle-thinking {
+  color: var(--ink-dim);
+  font-size: 14px;
+  font-style: italic;
+  margin: 0;
+  animation: pulseDim 1.4s ease-in-out infinite;
+}
+
+@keyframes pulseDim {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+.oracle-answer {
+  font-size: 16px;
+  line-height: 1.6;
+  margin: 0;
+  color: var(--ink);
+}
+
+.oracle-placeholder {
+  color: var(--ink-dim);
+  letter-spacing: 0.3em;
+  margin: 0;
+  width: 100%;
+  text-align: center;
+}
