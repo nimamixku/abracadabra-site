@@ -14,7 +14,7 @@
     "react-dom": "19.2.8",
     "stripe": "^17.5.0",
     "@stripe/stripe-js": "^4.10.0",
-    "@stripe/react-stripe-js": "^2.9.0",
+    "@stripe/react-stripe-js": "^6.8.2",
     "pg": "^8.13.1"
   },
   "devDependencies": {
