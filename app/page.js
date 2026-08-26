@@ -2,7 +2,13 @@
 
 import { useEffect, useRef, useState, useCallback, createContext, useContext } from "react";
 import { loadStripe } from "@stripe/stripe-js";
-import { Elements, useStripe, PaymentRequestButtonElement } from "@stripe/react-stripe-js";
+import {
+  Elements,
+  useStripe,
+  useElements,
+  PaymentRequestButtonElement,
+  CardElement,
+} from "@stripe/react-stripe-js";
 import { PRODUCTS } from "@/lib/products";
 import { PLAY_PACK, FEATURES } from "@/lib/experiences";
 
@@ -12,6 +18,20 @@ const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 
 const SHIPPING_CENTS = 600;
 const PLAYS_STORAGE_KEY = "abracadabra-plays-v1";
+
+// Stripe's card entry field lives inside its own iframe, so it can't read
+// this page's CSS variables -- these are the same colors as --ink,
+// --ink-dim, and #ff8a8a in globals.css, just spelled out literally.
+const CARD_ELEMENT_OPTIONS = {
+  style: {
+    base: {
+      color: "#f3f2ee",
+      fontSize: "16px",
+      "::placeholder": { color: "#a5a3ab" },
+    },
+    invalid: { color: "#ff8a8a" },
+  },
+};
 
 const MARQUEE_PHRASES = [
   "ABRACADABRA MEANS I CREATE AS I SPEAK",
@@ -487,6 +507,7 @@ function FeatureCard({ feature }) {
 // leaving the feed.
 function ProductCard({ product }) {
   const stripe = useStripe();
+  const elements = useElements();
   const lightbox = useLightbox();
   const [selectedSize, setSelectedSize] = useState(product.sizes ? product.sizes[0] : null);
   const selectedSizeRef = useRef(selectedSize);
@@ -497,9 +518,92 @@ function ProductCard({ product }) {
   const [status, setStatus] = useState("idle"); // idle | processing | success | error
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [showCardForm, setShowCardForm] = useState(false);
+
+  const shippingCents = product.type === "physical" ? SHIPPING_CENTS : 0;
+
+  // Plain-card fallback for anyone without Apple Pay or Google Pay set up
+  // (most regular computers) -- without this, those shoppers had no way to
+  // buy anything at all.
+  async function handleCardPay(e) {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+    const cardElement = elements.getElement(CardElement);
+    if (!cardElement) return;
+
+    setStatus("processing");
+    setErrorMsg("");
+    try {
+      const res = await fetch("/api/create-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: product.id,
+          size: selectedSizeRef.current,
+          price: product.price,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not start payment.");
+
+      // No handleActions:false here -- unlike the wallet flow, a plain card
+      // payment can just let Stripe.js pop up its own 3D Secure step
+      // automatically if the card needs one.
+      const confirmResult = await stripe.confirmCardPayment(data.clientSecret, {
+        payment_method: { card: cardElement },
+      });
+
+      if (confirmResult.error) {
+        setStatus("error");
+        setErrorMsg(confirmResult.error.message || "Payment failed.");
+        return;
+      }
+
+      const confirmRes = await fetch("/api/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentIntentId: confirmResult.paymentIntent.id }),
+      });
+      const confirmData = await confirmRes.json();
+      if (!confirmRes.ok) throw new Error(confirmData.error || "Could not confirm purchase.");
+
+      setResult(confirmData);
+      setStatus("success");
+    } catch (err) {
+      setStatus("error");
+      setErrorMsg(err.message || "Something went wrong.");
+    }
+  }
+
+  // Each card's Apple/Google Pay button is a real embedded iframe -- setting
+  // one up for every card the instant it's created (rather than only the
+  // ones actually on screen) is what was crashing phones on a long scroll:
+  // dozens of cards, each spinning up its own payment iframe at once. So we
+  // wait until a card is about to scroll into view before creating its
+  // payment request at all.
+  const cardRef = useRef(null);
+  const [nearView, setNearView] = useState(false);
 
   useEffect(() => {
-    if (!stripe) return;
+    const el = cardRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setNearView(true);
+            obs.disconnect();
+          }
+        });
+      },
+      { rootMargin: "600px 0px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!stripe || !nearView) return;
 
     const shippingCents = product.type === "physical" ? SHIPPING_CENTS : 0;
     const pr = stripe.paymentRequest({
@@ -591,10 +695,10 @@ function ProductCard({ product }) {
     pr.canMakePayment().then((res) => setCanApplePay(!!res));
     setPaymentRequest(pr);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stripe, product.id]);
+  }, [stripe, product.id, nearView]);
 
   return (
-    <div className="card">
+    <div className="card" ref={cardRef}>
       <div className="card-media">
         <span className="card-kind">
           {product.type === "digital" ? "Art · digital" : "Clothing · ships"}
@@ -607,10 +711,13 @@ function ProductCard({ product }) {
         />
         <button
           type="button"
-          className="expand-hint"
+          className="expand-hint-wrap"
           aria-label="View full image"
           onClick={() => lightbox.open(product.image, product.title)}
-        />
+        >
+          <span className="expand-hint" aria-hidden="true" />
+          <span className="expand-label">expand</span>
+        </button>
       </div>
       <div className="card-body">
         <div className="card-row">
@@ -681,11 +788,31 @@ function ProductCard({ product }) {
                 />
               </div>
             )}
-            {canApplePay === false && (
-              <p style={{ color: "var(--ink-dim)", fontSize: 13, marginTop: 14 }}>
-                One-tap buying needs Apple Pay or Google Pay — open this page on
-                an iPhone/Mac in Safari, or Chrome on Android, to buy.
-              </p>
+            {canApplePay === false && !showCardForm && (
+              <button
+                className="buy-btn"
+                type="button"
+                style={{ marginTop: 14 }}
+                onClick={() => setShowCardForm(true)}
+              >
+                Pay with card — {formatPrice(product.price + shippingCents)}
+              </button>
+            )}
+            {canApplePay === false && showCardForm && (
+              <form onSubmit={handleCardPay} className="card-pay-form">
+                <div className="card-element-wrap">
+                  <CardElement options={CARD_ELEMENT_OPTIONS} />
+                </div>
+                <button
+                  className="buy-btn"
+                  type="submit"
+                  disabled={status === "processing"}
+                >
+                  {status === "processing"
+                    ? "Processing…"
+                    : `Pay ${formatPrice(product.price + shippingCents)}`}
+                </button>
+              </form>
             )}
             {status === "processing" && (
               <p style={{ color: "var(--ink-dim)", fontSize: 13, marginTop: 10 }}>
@@ -718,7 +845,7 @@ function buildFeedPool() {
 // nothing was ever removed, so a long scroll session would slowly eat a
 // phone's memory until the browser killed the tab. Once the cap is hit we
 // just stop adding more; nobody scrolls through 300+ cards in one sitting.
-const MAX_FEED_ITEMS = 300;
+const MAX_FEED_ITEMS = 150;
 
 function Feed() {
   const [items, setItems] = useState(() =>

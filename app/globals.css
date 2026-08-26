@@ -114,23 +114,59 @@ a {
 
 /* small pulsing "sun" in the corner of every photo -- a quiet hint that
    the image can be tapped open, without sitting on top of the art itself */
-.expand-hint {
+.expand-hint-wrap {
   position: absolute;
   right: 12px;
   bottom: 12px;
-  width: 30px;
-  height: 30px;
-  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   border: none;
-  border-radius: 50%;
+  background: none;
+  padding: 0;
   cursor: zoom-in;
-  background: radial-gradient(circle, #ffe9b8 0%, #ffc857 45%, #ff9d3c 78%, transparent 80%);
-  animation: sunPulse 2.4s ease-in-out infinite;
 }
 
-@keyframes sunPulse {
-  0%, 100% { box-shadow: 0 0 5px 1px rgba(255, 190, 110, 0.35); }
-  50% { box-shadow: 0 0 12px 5px rgba(255, 190, 110, 0.6); }
+.expand-hint {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff3d6 0%, #ffc857 55%, #ff9d3c 90%);
+  animation: sunGlow 2.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.expand-label {
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.8);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+@keyframes sunGlow {
+  0%, 100% {
+    box-shadow: 0 0 3px 1px rgba(255, 190, 110, 0.25);
+    filter: brightness(0.85);
+  }
+  50% {
+    box-shadow: 0 0 16px 7px rgba(255, 190, 110, 0.75);
+    filter: brightness(1.35);
+  }
+}
+
+.card-pay-form {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card-element-wrap {
+  background: var(--card);
+  border: 1px solid var(--card-line);
+  border-radius: 10px;
+  padding: 12px 14px;
 }
 
 /* small pill, same look as .card-kind, sitting right above the buy button */
