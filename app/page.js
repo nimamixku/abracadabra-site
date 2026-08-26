@@ -95,6 +95,27 @@ function useLightbox() {
   return useContext(LightboxContext);
 }
 
+// ---- "buy right from the feed" tracking ----
+// Apple Pay and Google Pay's on-page button has to be the literal element a
+// customer's finger actually lands on -- that's a security rule Apple and
+// Google enforce themselves, and there's no way for any site to fake a tap
+// on it from a different button. So the floating "tap & pay" shortcut can't
+// just be a generic button that triggers *some* purchase; instead every
+// card quietly reports how visible it is, and the floating shortcut always
+// hosts a real, live buy button for whichever photo is currently most on
+// screen -- it just re-points itself as the customer scrolls.
+const ActiveCardContext = createContext(null);
+
+function useRegisterCard(product) {
+  const register = useContext(ActiveCardContext);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!register || !ref.current) return;
+    return register(ref.current, product);
+  }, [register, product]);
+  return ref;
+}
+
 function LightboxProvider({ children }) {
   const [product, setLightboxProduct] = useState(null); // full product object | null
 
@@ -830,9 +851,10 @@ function BuySection({ product, selectedSize = null, lazy = true }) {
 function ProductCard({ product }) {
   const lightbox = useLightbox();
   const [selectedSize, setSelectedSize] = useState(product.sizes ? product.sizes[0] : null);
+  const cardRef = useRegisterCard(product);
 
   return (
-    <div className="card">
+    <div className="card" ref={cardRef}>
       <div className="card-media">
         <span className="card-kind">
           {product.type === "digital" ? "Art · digital" : "Clothing · ships"}
@@ -993,19 +1015,62 @@ function Feed() {
     return () => obs.disconnect();
   }, [loadMore]);
 
+  // Every card reports its own visibility here; whichever one is most in
+  // view becomes the target for the floating "tap & pay" shortcut, so
+  // buying "from the feed" always means buying the photo actually being
+  // looked at, without having to scroll down to that card's own button.
+  const cardEntriesRef = useRef(new Map()); // card element -> { ratio, product }
+  const cardObserverRef = useRef(null);
+  const [activeProduct, setActiveProduct] = useState(null);
+
+  const getCardObserver = useCallback(() => {
+    if (!cardObserverRef.current) {
+      cardObserverRef.current = new IntersectionObserver(
+        (obsEntries) => {
+          obsEntries.forEach((entry) => {
+            const info = cardEntriesRef.current.get(entry.target);
+            if (info) info.ratio = entry.intersectionRatio;
+          });
+          let best = null;
+          cardEntriesRef.current.forEach((info) => {
+            if (info.ratio > 0.15 && (!best || info.ratio > best.ratio)) best = info;
+          });
+          setActiveProduct(best ? best.product : null);
+        },
+        { threshold: [0, 0.15, 0.3, 0.5, 0.7, 0.9, 1] }
+      );
+    }
+    return cardObserverRef.current;
+  }, []);
+
+  const registerCard = useCallback(
+    (el, product) => {
+      const obs = getCardObserver();
+      cardEntriesRef.current.set(el, { ratio: 0, product });
+      obs.observe(el);
+      return () => {
+        cardEntriesRef.current.delete(el);
+        obs.unobserve(el);
+      };
+    },
+    [getCardObserver]
+  );
+
   const atEnd = items.length >= MAX_FEED_ITEMS;
 
   return (
     <>
-      <div className="feed">
-        {items.map((item) =>
-          item.feedType === "product" ? (
-            <ProductCard product={item.data} key={item.feedKey} />
-          ) : (
-            <FeatureCard feature={item.data} key={item.feedKey} />
-          )
-        )}
-      </div>
+      <ActiveCardContext.Provider value={registerCard}>
+        <div className="feed">
+          {items.map((item) =>
+            item.feedType === "product" ? (
+              <ProductCard product={item.data} key={item.feedKey} />
+            ) : (
+              <FeatureCard feature={item.data} key={item.feedKey} />
+            )
+          )}
+        </div>
+      </ActiveCardContext.Provider>
       <div className="feed-end" ref={sentinelRef} />
       <p className="loading-more">
         {atEnd ? "that's everything for now — refresh to shuffle a new set" : "keep scrolling — it reshuffles"}
@@ -1018,10 +1083,32 @@ function Feed() {
       >
         ✦ shuffle
       </button>
-      <span className="floating-tap-pay" aria-hidden="true">
-        ✦ tap &amp; pay
-      </span>
+      {activeProduct && activeProduct.type === "digital" && (
+        // Its own private Stripe session, same as every card's -- and a
+        // fresh one each time the active photo changes (the key forces a
+        // full remount) so there's never a stale wallet button left over
+        // from the last photo someone scrolled past.
+        <Elements stripe={stripePromise} key={activeProduct.id}>
+          <FloatingBuy product={activeProduct} />
+        </Elements>
+      )}
     </>
+  );
+}
+
+// The floating "tap & pay" shortcut -- a real, live buy button for
+// whichever photo is currently most visible, not a decorative stand-in.
+// Apple/Google Pay require the actual tap to land on the actual wallet
+// button, so this is that button, just kept within reach without having
+// to scroll down to the card it belongs to. Physical items are left out
+// here since buying one means picking a size first, and that choice lives
+// on the specific card, not up in this floating shortcut.
+function FloatingBuy({ product }) {
+  return (
+    <div className="floating-buy-wrap">
+      <p className="floating-buy-title">{product.title}</p>
+      <BuySection product={product} lazy={false} />
+    </div>
   );
 }
 
