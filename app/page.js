@@ -1106,7 +1106,10 @@ function Feed() {
 function FloatingBuy({ product }) {
   return (
     <div className="floating-buy-wrap">
-      <p className="floating-buy-title">{product.title}</p>
+      <p className="floating-buy-title">
+        <span className="floating-buy-title-text">{product.title}</span>
+        <span className="tap-pay-chip">✦ tap &amp; pay</span>
+      </p>
       <BuySection product={product} lazy={false} />
     </div>
   );
