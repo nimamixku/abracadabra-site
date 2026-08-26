@@ -96,31 +96,41 @@ function useLightbox() {
 }
 
 function LightboxProvider({ children }) {
-  const [image, setImage] = useState(null); // { src, alt } | null
+  const [product, setLightboxProduct] = useState(null); // full product object | null
 
   useEffect(() => {
-    if (!image) return;
+    if (!product) return;
     function onKey(e) {
-      if (e.key === "Escape") setImage(null);
+      if (e.key === "Escape") setLightboxProduct(null);
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [image]);
+  }, [product]);
 
   return (
-    <LightboxContext.Provider value={{ open: (src, alt) => setImage({ src, alt }) }}>
+    <LightboxContext.Provider value={{ open: (p) => setLightboxProduct(p) }}>
       {children}
-      {image && (
-        <div className="lightbox-overlay" onClick={() => setImage(null)}>
+      {product && (
+        <div className="lightbox-overlay" onClick={() => setLightboxProduct(null)}>
           <button
             className="lightbox-close"
             type="button"
-            onClick={() => setImage(null)}
+            onClick={() => setLightboxProduct(null)}
             aria-label="Close full view"
           >
             ✕
           </button>
-          <img className="lightbox-img" src={image.src} alt={image.alt} />
+          <img className="lightbox-img" src={product.image} alt={product.title} />
+          {/* Same buy option as the card below, so a shopper who stopped to
+              look closer at the art can buy right here without going back. */}
+          {product.type === "digital" && (
+            <div className="lightbox-buy" onClick={(e) => e.stopPropagation()}>
+              <p className="lightbox-title">
+                {product.title} · {formatPrice(product.price)}
+              </p>
+              <BuySection product={product} lazy={false} />
+            </div>
+          )}
           <p className="lightbox-hint">tap the image to go back</p>
         </div>
       )}
@@ -505,13 +515,13 @@ function FeatureCard({ feature }) {
 // product has sizes), its own in-place "purchased" state. Nothing here ever
 // navigates the page away -- the whole point is that buying happens without
 // leaving the feed.
-function ProductCard({ product }) {
+// All the actual buying logic (Apple/Google Pay + the plain-card fallback),
+// pulled out into its own piece so it can be dropped into both a feed card
+// and the expanded full-image view -- same purchase, same buttons, two
+// places to reach it from.
+function BuySection({ product, selectedSize = null, lazy = true }) {
   const stripe = useStripe();
   const elements = useElements();
-  const lightbox = useLightbox();
-  const [selectedSize, setSelectedSize] = useState(product.sizes ? product.sizes[0] : null);
-  const selectedSizeRef = useRef(selectedSize);
-  selectedSizeRef.current = selectedSize;
 
   const [paymentRequest, setPaymentRequest] = useState(null);
   const [canApplePay, setCanApplePay] = useState(null); // null = still checking
@@ -522,70 +532,19 @@ function ProductCard({ product }) {
 
   const shippingCents = product.type === "physical" ? SHIPPING_CENTS : 0;
 
-  // Plain-card fallback for anyone without Apple Pay or Google Pay set up
-  // (most regular computers) -- without this, those shoppers had no way to
-  // buy anything at all.
-  async function handleCardPay(e) {
-    e.preventDefault();
-    if (!stripe || !elements) return;
-    const cardElement = elements.getElement(CardElement);
-    if (!cardElement) return;
-
-    setStatus("processing");
-    setErrorMsg("");
-    try {
-      const res = await fetch("/api/create-intent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productId: product.id,
-          size: selectedSizeRef.current,
-          price: product.price,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Could not start payment.");
-
-      // No handleActions:false here -- unlike the wallet flow, a plain card
-      // payment can just let Stripe.js pop up its own 3D Secure step
-      // automatically if the card needs one.
-      const confirmResult = await stripe.confirmCardPayment(data.clientSecret, {
-        payment_method: { card: cardElement },
-      });
-
-      if (confirmResult.error) {
-        setStatus("error");
-        setErrorMsg(confirmResult.error.message || "Payment failed.");
-        return;
-      }
-
-      const confirmRes = await fetch("/api/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentIntentId: confirmResult.paymentIntent.id }),
-      });
-      const confirmData = await confirmRes.json();
-      if (!confirmRes.ok) throw new Error(confirmData.error || "Could not confirm purchase.");
-
-      setResult(confirmData);
-      setStatus("success");
-    } catch (err) {
-      setStatus("error");
-      setErrorMsg(err.message || "Something went wrong.");
-    }
-  }
-
   // Each card's Apple/Google Pay button is a real embedded iframe -- setting
-  // one up for every card the instant it's created (rather than only the
-  // ones actually on screen) is what was crashing phones on a long scroll:
-  // dozens of cards, each spinning up its own payment iframe at once. So we
-  // wait until a card is about to scroll into view before creating its
-  // payment request at all.
-  const cardRef = useRef(null);
-  const [nearView, setNearView] = useState(false);
+  // one up the instant a card exists (rather than only for the ones
+  // actually on screen) is what was crashing phones on a long scroll:
+  // dozens of cards, each spinning up its own payment iframe at once. So a
+  // card's copy waits until it's about to scroll into view; the one-off
+  // copy inside the expanded photo view (lazy=false) just creates it
+  // immediately since only one of those ever exists at a time.
+  const wrapRef = useRef(null);
+  const [nearView, setNearView] = useState(!lazy);
 
   useEffect(() => {
-    const el = cardRef.current;
+    if (!lazy) return;
+    const el = wrapRef.current;
     if (!el) return;
     const obs = new IntersectionObserver(
       (entries) => {
@@ -600,12 +559,11 @@ function ProductCard({ product }) {
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, []);
+  }, [lazy]);
 
   useEffect(() => {
     if (!stripe || !nearView) return;
 
-    const shippingCents = product.type === "physical" ? SHIPPING_CENTS : 0;
     const pr = stripe.paymentRequest({
       country: "US",
       currency: "usd",
@@ -642,7 +600,7 @@ function ProductCard({ product }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             productId: product.id,
-            size: selectedSizeRef.current,
+            size: selectedSize,
             price: product.price,
           }),
         });
@@ -695,10 +653,152 @@ function ProductCard({ product }) {
     pr.canMakePayment().then((res) => setCanApplePay(!!res));
     setPaymentRequest(pr);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stripe, product.id, nearView]);
+  }, [stripe, product.id, product.price, selectedSize, nearView]);
+
+  // Plain-card fallback for anyone without Apple Pay or Google Pay set up
+  // (most regular computers) -- without this, those shoppers had no way to
+  // buy anything at all. It's shown as a small always-there button rather
+  // than only appearing when the wallet button can't, so there's always an
+  // obvious click-to-buy path even where a wallet happens to be available.
+  async function handleCardPay(e) {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+    const cardElement = elements.getElement(CardElement);
+    if (!cardElement) return;
+
+    setStatus("processing");
+    setErrorMsg("");
+    try {
+      const res = await fetch("/api/create-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: product.id,
+          size: selectedSize,
+          price: product.price,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not start payment.");
+
+      // No handleActions:false here -- unlike the wallet flow, a plain card
+      // payment can just let Stripe.js pop up its own 3D Secure step
+      // automatically if the card needs one.
+      const confirmResult = await stripe.confirmCardPayment(data.clientSecret, {
+        payment_method: { card: cardElement },
+      });
+
+      if (confirmResult.error) {
+        setStatus("error");
+        setErrorMsg(confirmResult.error.message || "Payment failed.");
+        return;
+      }
+
+      const confirmRes = await fetch("/api/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentIntentId: confirmResult.paymentIntent.id }),
+      });
+      const confirmData = await confirmRes.json();
+      if (!confirmRes.ok) throw new Error(confirmData.error || "Could not confirm purchase.");
+
+      setResult(confirmData);
+      setStatus("success");
+    } catch (err) {
+      setStatus("error");
+      setErrorMsg(err.message || "Something went wrong.");
+    }
+  }
+
+  if (status === "success" && result) {
+    return (
+      <div ref={wrapRef} style={{ marginTop: 14 }}>
+        {result.type === "digital" ? (
+          <>
+            <a className="buy-btn" href={result.fileUrl} download>
+              Purchased ✓ — Download full-res TIFF
+            </a>
+            <p className="tiff-note">
+              Heads up: this file is built for high-quality physical prints,
+              not for viewing on a phone or laptop screen — it may look soft
+              or oversized there. That's normal, not a flaw. Open it in a
+              printing app (or send it to a print shop) to see it at full
+              quality.
+            </p>
+          </>
+        ) : (
+          <p style={{ color: "var(--success)", fontWeight: 700, margin: 0 }}>
+            Purchased ✓ — shipping your {result.size ? result.size + " " : ""}
+            {result.title.toLowerCase()} soon
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
-    <div className="card" ref={cardRef}>
+    <div ref={wrapRef}>
+      <button
+        type="button"
+        className="quick-card-btn"
+        onClick={() => setShowCardForm((s) => !s)}
+      >
+        {showCardForm ? "cancel" : `pay with card — ${formatPrice(product.price + shippingCents)}`}
+      </button>
+
+      {showCardForm && (
+        <form onSubmit={handleCardPay} className="card-pay-form">
+          <div className="card-element-wrap">
+            <CardElement options={CARD_ELEMENT_OPTIONS} />
+          </div>
+          <button className="buy-btn" type="submit" disabled={status === "processing"}>
+            {status === "processing"
+              ? "Processing…"
+              : `Pay ${formatPrice(product.price + shippingCents)}`}
+          </button>
+        </form>
+      )}
+
+      {canApplePay && paymentRequest && (
+        <div className="buy-row">
+          <PaymentRequestButtonElement
+            options={{
+              paymentRequest,
+              style: {
+                paymentRequestButton: {
+                  type: "buy",
+                  theme: "dark",
+                  height: "50px",
+                },
+              },
+            }}
+          />
+          <span className="buy-hint">✦ tap &amp; pay</span>
+        </div>
+      )}
+
+      {status === "processing" && (
+        <p style={{ color: "var(--ink-dim)", fontSize: 13, marginTop: 10 }}>
+          Confirming your payment…
+        </p>
+      )}
+      {status === "error" && (
+        <p style={{ color: "#ff8a8a", fontSize: 13, marginTop: 10 }}>{errorMsg}</p>
+      )}
+    </div>
+  );
+}
+
+// One scrollable card: its own size picker (if the product has sizes), its
+// own tap-to-expand photo, and a BuySection. Nothing here ever navigates
+// the page away -- the whole point is that buying happens without leaving
+// the feed.
+function ProductCard({ product }) {
+  const lightbox = useLightbox();
+  const [selectedSize, setSelectedSize] = useState(product.sizes ? product.sizes[0] : null);
+
+  return (
+    <div className="card">
       <div className="card-media">
         <span className="card-kind">
           {product.type === "digital" ? "Art · digital" : "Clothing · ships"}
@@ -707,13 +807,13 @@ function ProductCard({ product }) {
           src={product.image}
           alt={product.title}
           loading="lazy"
-          onClick={() => lightbox.open(product.image, product.title)}
+          onClick={() => lightbox.open(product)}
         />
         <button
           type="button"
           className="expand-hint-wrap"
           aria-label="View full image"
-          onClick={() => lightbox.open(product.image, product.title)}
+          onClick={() => lightbox.open(product)}
         >
           <span className="expand-hint" aria-hidden="true" />
           <span className="expand-label">expand</span>
@@ -730,7 +830,7 @@ function ProductCard({ product }) {
           </div>
         </div>
 
-        {product.sizes && status !== "success" && (
+        {product.sizes && (
           <div className="size-row">
             {product.sizes.map((s) => (
               <button
@@ -745,85 +845,7 @@ function ProductCard({ product }) {
           </div>
         )}
 
-        {status === "success" && result && (
-          <div style={{ marginTop: 14 }}>
-            {result.type === "digital" ? (
-              <>
-                <a className="buy-btn" href={result.fileUrl} download>
-                  Purchased ✓ — Download full-res TIFF
-                </a>
-                <p className="tiff-note">
-                  Heads up: this file is built for high-quality physical prints,
-                  not for viewing on a phone or laptop screen — it may look soft
-                  or oversized there. That's normal, not a flaw. Open it in a
-                  printing app (or send it to a print shop) to see it at full
-                  quality.
-                </p>
-              </>
-            ) : (
-              <p style={{ color: "var(--success)", fontWeight: 700, margin: 0 }}>
-                Purchased ✓ — shipping your {result.size ? result.size + " " : ""}
-                {result.title.toLowerCase()} soon
-              </p>
-            )}
-          </div>
-        )}
-
-        {status !== "success" && (
-          <>
-            {canApplePay && paymentRequest && (
-              <div style={{ marginTop: 14 }}>
-                <span className="buy-hint">✦ tap to buy</span>
-                <PaymentRequestButtonElement
-                  options={{
-                    paymentRequest,
-                    style: {
-                      paymentRequestButton: {
-                        type: "buy",
-                        theme: "dark",
-                        height: "50px",
-                      },
-                    },
-                  }}
-                />
-              </div>
-            )}
-            {canApplePay === false && !showCardForm && (
-              <button
-                className="buy-btn"
-                type="button"
-                style={{ marginTop: 14 }}
-                onClick={() => setShowCardForm(true)}
-              >
-                Pay with card — {formatPrice(product.price + shippingCents)}
-              </button>
-            )}
-            {canApplePay === false && showCardForm && (
-              <form onSubmit={handleCardPay} className="card-pay-form">
-                <div className="card-element-wrap">
-                  <CardElement options={CARD_ELEMENT_OPTIONS} />
-                </div>
-                <button
-                  className="buy-btn"
-                  type="submit"
-                  disabled={status === "processing"}
-                >
-                  {status === "processing"
-                    ? "Processing…"
-                    : `Pay ${formatPrice(product.price + shippingCents)}`}
-                </button>
-              </form>
-            )}
-            {status === "processing" && (
-              <p style={{ color: "var(--ink-dim)", fontSize: 13, marginTop: 10 }}>
-                Confirming your payment…
-              </p>
-            )}
-            {status === "error" && (
-              <p style={{ color: "#ff8a8a", fontSize: 13, marginTop: 10 }}>{errorMsg}</p>
-            )}
-          </>
-        )}
+        <BuySection product={product} selectedSize={selectedSize} lazy={true} />
       </div>
     </div>
   );
@@ -839,17 +861,44 @@ function buildFeedPool() {
   ];
 }
 
-// Hard ceiling on how many cards can pile up in the DOM at once. Without
-// this, "infinite" scroll really was infinite -- every batch added ~95
-// more cards (each with its own images and its own Apple Pay button) and
-// nothing was ever removed, so a long scroll session would slowly eat a
-// phone's memory until the browser killed the tab. Once the cap is hit we
-// just stop adding more; nobody scrolls through 300+ cards in one sitting.
-const MAX_FEED_ITEMS = 150;
+// Every batch used to be the ENTIRE ~95-item shop dumped in at once, so
+// scrolling near the bottom even a couple of times meant hundreds of cards
+// -- each with its own images and its own payment button -- piling up in
+// memory until the browser killed the tab. Now each scroll only adds a
+// small handful.
+//
+// The cap below isn't an arbitrary cut-off, though -- it's sized to fit one
+// full pass through every single product and feature at least once, so a
+// full scroll session still shuffles through all the content, just spread
+// across smaller, lighter batches instead of one giant one. Once the whole
+// shop has come up, it reshuffles and starts again from the top.
+const BATCH_SIZE = 18;
+const POOL_SIZE = PRODUCTS.length + FEATURES.length;
+const MAX_FEED_ITEMS = Math.ceil(POOL_SIZE / BATCH_SIZE) * BATCH_SIZE;
 
 function Feed() {
+  // A shuffled queue that gets drawn from in order -- guarantees every item
+  // shows up once before anything repeats, rather than each batch being an
+  // independent random draw (which could easily skip pieces or repeat
+  // others within the same short session).
+  const queueRef = useRef(shuffled(buildFeedPool()));
+  const posRef = useRef(0);
+
+  const takeBatch = useCallback((n) => {
+    const out = [];
+    while (out.length < n) {
+      if (posRef.current >= queueRef.current.length) {
+        queueRef.current = shuffled(buildFeedPool());
+        posRef.current = 0;
+      }
+      out.push(queueRef.current[posRef.current]);
+      posRef.current += 1;
+    }
+    return out;
+  }, []);
+
   const [items, setItems] = useState(() =>
-    shuffled(buildFeedPool()).map((it, i) => ({ ...it, feedKey: `${it.data.id}-${i}` }))
+    takeBatch(BATCH_SIZE).map((it, i) => ({ ...it, feedKey: `${it.data.id}-${i}` }))
   );
   const sentinelRef = useRef(null);
   const batchRef = useRef(1);
@@ -860,13 +909,34 @@ function Feed() {
       batchRef.current += 1;
       return [
         ...prev,
-        ...shuffled(buildFeedPool()).map((it, i) => ({
+        ...takeBatch(BATCH_SIZE).map((it, i) => ({
           ...it,
           feedKey: `${it.data.id}-${batchRef.current}-${i}`,
         })),
       ];
     });
-  }, []);
+  }, [takeBatch]);
+
+  // A manual reshuffle for anyone who doesn't want to wait for the natural
+  // end of the current pass -- starts a brand new shuffled queue from
+  // scratch and jumps back to the top so the fresh order is visible right
+  // away, as many times as someone wants to click it.
+  const reshuffleRef = useRef(0);
+  const reshuffle = useCallback(() => {
+    queueRef.current = shuffled(buildFeedPool());
+    posRef.current = 0;
+    batchRef.current = 1;
+    reshuffleRef.current += 1;
+    setItems(
+      takeBatch(BATCH_SIZE).map((it, i) => ({
+        ...it,
+        feedKey: `${it.data.id}-r${reshuffleRef.current}-${i}`,
+      }))
+    );
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [takeBatch]);
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -883,6 +953,8 @@ function Feed() {
     return () => obs.disconnect();
   }, [loadMore]);
 
+  const atEnd = items.length >= MAX_FEED_ITEMS;
+
   return (
     <>
       <div className="feed">
@@ -895,7 +967,17 @@ function Feed() {
         )}
       </div>
       <div className="feed-end" ref={sentinelRef} />
-      <p className="loading-more">keep scrolling — it reshuffles</p>
+      <p className="loading-more">
+        {atEnd ? "that's everything for now — refresh to shuffle a new set" : "keep scrolling — it reshuffles"}
+      </p>
+      <button
+        type="button"
+        className="floating-shuffle"
+        onClick={reshuffle}
+        aria-label="Shuffle the feed"
+      >
+        ✦ shuffle
+      </button>
     </>
   );
 }

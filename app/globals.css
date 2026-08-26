@@ -132,7 +132,7 @@ a {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: radial-gradient(circle, #fff3d6 0%, #ffc857 55%, #ff9d3c 90%);
+  background: #0a0a0a;
   animation: sunGlow 2.2s ease-in-out infinite;
   flex-shrink: 0;
 }
@@ -146,17 +146,17 @@ a {
 
 @keyframes sunGlow {
   0%, 100% {
-    box-shadow: 0 0 3px 1px rgba(255, 190, 110, 0.25);
-    filter: brightness(0.85);
+    box-shadow: 0 0 3px 1px rgba(255, 255, 255, 0.3);
+    filter: brightness(0.8);
   }
   50% {
-    box-shadow: 0 0 16px 7px rgba(255, 190, 110, 0.75);
-    filter: brightness(1.35);
+    box-shadow: 0 0 16px 7px rgba(255, 255, 255, 0.85);
+    filter: brightness(1.5);
   }
 }
 
 .card-pay-form {
-  margin-top: 14px;
+  margin-top: 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -169,18 +169,43 @@ a {
   padding: 12px 14px;
 }
 
-/* small pill, same look as .card-kind, sitting right above the buy button */
-.buy-hint {
+/* the always-there plain-card option, small and understated under the
+   title -- the wallet button (when available) is still the main draw, but
+   this makes sure a plain click always works too */
+.quick-card-btn {
   display: inline-block;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  background: rgba(0, 0, 0, 0.55);
-  color: var(--ink);
-  padding: 5px 10px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--ink-dim);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--card-line);
+  padding: 6px 12px;
   border-radius: 100px;
-  backdrop-filter: blur(4px);
-  margin-bottom: 10px;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+/* the wallet button's row -- "tap & pay" sits to its right, near the
+   button itself rather than stacked above it */
+.buy-row {
+  position: relative;
+  margin-top: 14px;
+  padding-right: 78px;
+}
+
+.buy-hint {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-block;
+  width: 66px;
+  font-size: 10.5px;
+  line-height: 1.3;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  text-align: right;
 }
 
 .card-price-col {
@@ -209,7 +234,7 @@ a {
 
 .lightbox-img {
   max-width: 100%;
-  max-height: 82vh;
+  max-height: 62vh;
   object-fit: contain;
   border-radius: 8px;
   cursor: zoom-out;
@@ -219,6 +244,27 @@ a {
   color: var(--ink-dim);
   font-size: 13px;
   margin: 14px 0 0;
+}
+
+/* the same buy option as the card, dropped into the expanded photo view --
+   cursor is reset to default and clicks are stopped from bubbling up, so
+   using it doesn't accidentally close the photo */
+.lightbox-buy {
+  width: 100%;
+  max-width: 360px;
+  margin-top: 18px;
+  padding: 16px 18px;
+  background: var(--card);
+  border: 1px solid var(--card-line);
+  border-radius: 16px;
+  cursor: default;
+}
+
+.lightbox-title {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
 }
 
 .lightbox-close {
@@ -338,6 +384,34 @@ a {
   font-size: 13px;
   padding: 20px 0 6px;
   letter-spacing: 0.04em;
+}
+
+/* stays put on screen while scrolling, gently bobbing so it reads as
+   "floating" rather than just another button pinned to the corner */
+.floating-shuffle {
+  position: fixed;
+  bottom: 22px;
+  right: 18px;
+  z-index: 500;
+  background: var(--card);
+  border: 1px solid var(--card-line);
+  color: var(--ink);
+  padding: 12px 20px;
+  border-radius: 100px;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  animation: shuffleFloat 3s ease-in-out infinite;
+}
+
+.floating-shuffle:active {
+  transform: translateY(0) scale(0.96);
+}
+
+@keyframes shuffleFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
 }
 
 /* ---- success page ---- */
