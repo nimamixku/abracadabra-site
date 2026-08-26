@@ -1150,7 +1150,7 @@ export default function Home() {
             <input
               type="text"
               className="search-input"
-              placeholder="search title…"
+              placeholder="find"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               autoFocus
