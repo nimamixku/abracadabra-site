@@ -135,7 +135,9 @@ function LightboxProvider({ children }) {
                 may look soft or oversized on an iPhone or laptop screen;
                 that's expected, and it'll look sharp once printed.
               </p>
-              <BuySection product={product} lazy={false} />
+              <Elements stripe={stripePromise}>
+                <BuySection product={product} lazy={false} />
+              </Elements>
             </div>
           )}
           <p className="lightbox-hint">tap the image to go back</p>
@@ -316,11 +318,17 @@ function NoPlaysLeft() {
       <p style={{ color: "var(--ink-dim)", fontSize: 14, marginBottom: 10 }}>
         out of plays — {formatPrice(PLAY_PACK.price)} for {PLAY_PACK.playsGranted} more
       </p>
-      <InlineBuyButton
-        label={PLAY_PACK.title}
-        amountCents={PLAY_PACK.price}
-        onSuccess={(paymentIntentId) => addPlays(PLAY_PACK.playsGranted, paymentIntentId)}
-      />
+      {/* Its own private Stripe session -- Stripe only allows one wallet
+          button per shared session, and the feed can easily have several
+          of these "out of plays" prompts and product cards all mounted at
+          once, so each one needs to be fully isolated from the others. */}
+      <Elements stripe={stripePromise}>
+        <InlineBuyButton
+          label={PLAY_PACK.title}
+          amountCents={PLAY_PACK.price}
+          onSuccess={(paymentIntentId) => addPlays(PLAY_PACK.playsGranted, paymentIntentId)}
+        />
+      </Elements>
     </div>
   );
 }
@@ -871,7 +879,13 @@ function ProductCard({ product }) {
           </div>
         )}
 
-        <BuySection product={product} selectedSize={selectedSize} lazy={true} />
+        {/* Its own private Stripe session, same reasoning as above -- every
+            card in the feed needs to be able to have a wallet button ready
+            at the same time as every other card, without Stripe treating
+            that as more than one of the same button existing at once. */}
+        <Elements stripe={stripePromise}>
+          <BuySection product={product} selectedSize={selectedSize} lazy={true} />
+        </Elements>
       </div>
     </div>
   );
@@ -1020,21 +1034,17 @@ export default function Home() {
         </span>
       </div>
       {stripePromise ? (
-        // Elements has to be the outermost wrapper here -- LightboxProvider
-        // renders its own expanded-photo buy section as a sibling of
-        // {children}, not nested inside it, so if Elements sat underneath
-        // LightboxProvider (as it did before) that buy section would be
-        // rendered outside the Elements tree. useStripe()/useElements()
-        // inside it would then throw "Could not find Elements context" the
-        // instant a digital photo was expanded -- crashing the whole page
-        // on every device, which is exactly what was happening.
-        <Elements stripe={stripePromise}>
-          <LightboxProvider>
-            <PlayBalanceProvider>
-              <Feed />
-            </PlayBalanceProvider>
-          </LightboxProvider>
-        </Elements>
+        // No single shared <Elements> wrapper here anymore -- Stripe only
+        // allows one wallet button to exist at a time per Elements group,
+        // and this feed can easily have several cards (plus the expanded
+        // photo view, plus an "out of plays" prompt) all mounted at once.
+        // Each one now brings its own private <Elements> right where it's
+        // used, so none of them ever compete with each other.
+        <LightboxProvider>
+          <PlayBalanceProvider>
+            <Feed />
+          </PlayBalanceProvider>
+        </LightboxProvider>
       ) : (
         <p style={{ padding: 20, color: "var(--ink-dim)" }}>
           Add your Stripe publishable key to .env.local to turn on buying —
