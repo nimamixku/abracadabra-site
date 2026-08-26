@@ -7,9 +7,15 @@ import { getExperience } from "@/lib/experiences";
 // this if you want free shipping, a different rate, or multiple options.
 const SHIPPING_CENTS = 600;
 
+// Digital art's price shuffles between these three points on the client
+// (see withShuffledPrice in app/page.js) purely for fun. We still never
+// trust whatever the client says it saw -- only accept the request's price
+// if it's one of these exact, pre-approved amounts.
+const DIGITAL_PRICE_TIERS = [50, 75, 100];
+
 export async function POST(req) {
   try {
-    const { productId, experienceId, size } = await req.json();
+    const { productId, experienceId, size, price } = await req.json();
     const stripe = getStripe();
 
     // ---- a paid interactive feature (candle / marquee / oracle) ----
@@ -47,9 +53,17 @@ export async function POST(req) {
 
     // Price and amount are computed here, server-side, from the catalog --
     // never trusted from the client -- so nobody can tamper with what they
-    // actually get charged.
+    // actually get charged. The one exception is digital art's shuffled
+    // price, which is only honored if it exactly matches one of the
+    // pre-approved tiers above; anything else falls back to the catalog
+    // price.
+    const amount =
+      product.type === "digital" && DIGITAL_PRICE_TIERS.includes(price)
+        ? price
+        : product.price;
+
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: product.price + shipping,
+      amount: amount + shipping,
       currency: "usd",
       automatic_payment_methods: { enabled: true },
       metadata: {
@@ -58,12 +72,13 @@ export async function POST(req) {
         title: product.title,
         size: size || "",
         type: product.type,
+        price: String(amount),
       },
     });
 
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
-      amount: product.price + shipping,
+      amount: amount + shipping,
       shipping,
     });
   } catch (err) {

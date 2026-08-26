@@ -112,11 +112,50 @@ a {
   cursor: zoom-in;
 }
 
-.buy-note {
+/* small pulsing "sun" in the corner of every photo -- a quiet hint that
+   the image can be tapped open, without sitting on top of the art itself */
+.expand-hint {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  cursor: zoom-in;
+  background: radial-gradient(circle, #ffe9b8 0%, #ffc857 45%, #ff9d3c 78%, transparent 80%);
+  animation: sunPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes sunPulse {
+  0%, 100% { box-shadow: 0 0 5px 1px rgba(255, 190, 110, 0.35); }
+  50% { box-shadow: 0 0 12px 5px rgba(255, 190, 110, 0.6); }
+}
+
+/* small pill, same look as .card-kind, sitting right above the buy button */
+.buy-hint {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--ink);
+  padding: 5px 10px;
+  border-radius: 100px;
+  backdrop-filter: blur(4px);
+  margin-bottom: 10px;
+}
+
+.card-price-col {
+  text-align: right;
+}
+
+.card-price-words {
+  font-size: 11px;
+  font-weight: 400;
   color: var(--ink-dim);
-  font-size: 12.5px;
-  line-height: 1.5;
-  margin: 10px 0 0;
+  margin: 2px 0 0;
 }
 
 .lightbox-overlay {

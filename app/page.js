@@ -36,6 +36,24 @@ function formatPrice(cents) {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+// Digital art shuffles between three price points every time the feed
+// reshuffles -- same piece might show up at 50 cents in one pass and $1 in
+// another. Clothing keeps its fixed price (real cost + shipping behind it).
+const DIGITAL_PRICE_TIERS = [50, 75, 100];
+
+function priceInWords(cents) {
+  if (cents === 50) return "fifty cents";
+  if (cents === 75) return "seventy-five cents";
+  if (cents === 100) return "one dollar";
+  return null;
+}
+
+function withShuffledPrice(product) {
+  if (product.type !== "digital") return product;
+  const price = DIGITAL_PRICE_TIERS[Math.floor(Math.random() * DIGITAL_PRICE_TIERS.length)];
+  return { ...product, price };
+}
+
 // ---- shared play balance (localStorage-backed, no login) ----
 // A $1 purchase grants 3 plays, spendable across any of the three
 // interactive features. See the note at the top of lib/experiences.js
@@ -521,6 +539,7 @@ function ProductCard({ product }) {
           body: JSON.stringify({
             productId: product.id,
             size: selectedSizeRef.current,
+            price: product.price,
           }),
         });
         const data = await res.json();
@@ -586,11 +605,22 @@ function ProductCard({ product }) {
           loading="lazy"
           onClick={() => lightbox.open(product.image, product.title)}
         />
+        <button
+          type="button"
+          className="expand-hint"
+          aria-label="View full image"
+          onClick={() => lightbox.open(product.image, product.title)}
+        />
       </div>
       <div className="card-body">
         <div className="card-row">
           <p className="card-title">{product.title}</p>
-          <p className="card-price">{formatPrice(product.price)}</p>
+          <div className="card-price-col">
+            <p className="card-price">{formatPrice(product.price)}</p>
+            {priceInWords(product.price) && (
+              <p className="card-price-words">{priceInWords(product.price)}</p>
+            )}
+          </div>
         </div>
 
         {product.sizes && status !== "success" && (
@@ -636,6 +666,7 @@ function ProductCard({ product }) {
           <>
             {canApplePay && paymentRequest && (
               <div style={{ marginTop: 14 }}>
+                <span className="buy-hint">✦ tap to buy</span>
                 <PaymentRequestButtonElement
                   options={{
                     paymentRequest,
@@ -648,11 +679,6 @@ function ProductCard({ product }) {
                     },
                   }}
                 />
-                <p className="buy-note">
-                  One-tap buy with Apple Pay or Google Pay — confirm with Face
-                  ID, Touch ID, or your fingerprint. No forms, no typing in a
-                  card number.
-                </p>
               </div>
             )}
             {canApplePay === false && (
@@ -681,7 +707,7 @@ function ProductCard({ product }) {
 // products and little magic moments in no fixed order, and never runs out.
 function buildFeedPool() {
   return [
-    ...PRODUCTS.map((p) => ({ feedType: "product", data: p })),
+    ...PRODUCTS.map((p) => ({ feedType: "product", data: withShuffledPrice(p) })),
     ...FEATURES.map((f) => ({ feedType: "feature", data: f })),
   ];
 }
