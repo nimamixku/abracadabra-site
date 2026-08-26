@@ -128,6 +128,12 @@ function LightboxProvider({ children }) {
               <p className="lightbox-title">
                 {product.title} · {formatPrice(product.price)}
               </p>
+              <p className="lightbox-note">
+                You'll get the full-res TIFF file at 300 DPI — built for
+                high-quality physical prints, not for on-screen viewing. It
+                may look soft or oversized on an iPhone or laptop screen;
+                that's expected, and it'll look sharp once printed.
+              </p>
               <BuySection product={product} lazy={false} />
             </div>
           )}
@@ -546,13 +552,15 @@ function BuySection({ product, selectedSize = null, lazy = true }) {
     if (!lazy) return;
     const el = wrapRef.current;
     if (!el) return;
+    // Keeps observing both ways (not just disconnecting after the first
+    // "it's near" hit) -- a long scroll was piling up dozens of live Stripe
+    // payment iframes that never went away, which is what was crashing
+    // phones. Once a card scrolls far enough past, its wallet button gets
+    // torn down again in the effect below, same as it never having loaded.
     const obs = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setNearView(true);
-            obs.disconnect();
-          }
+          setNearView(entry.isIntersecting);
         });
       },
       { rootMargin: "600px 0px" }
@@ -562,7 +570,13 @@ function BuySection({ product, selectedSize = null, lazy = true }) {
   }, [lazy]);
 
   useEffect(() => {
-    if (!stripe || !nearView) return;
+    if (!stripe || !nearView) {
+      // Card scrolled far out of view (or hasn't loaded yet) -- make sure
+      // no stale wallet button/iframe for it is still sitting in memory.
+      setPaymentRequest(null);
+      setCanApplePay(null);
+      return;
+    }
 
     const pr = stripe.paymentRequest({
       country: "US",
@@ -738,13 +752,16 @@ function BuySection({ product, selectedSize = null, lazy = true }) {
 
   return (
     <div ref={wrapRef}>
-      <button
-        type="button"
-        className="quick-card-btn"
-        onClick={() => setShowCardForm((s) => !s)}
-      >
-        {showCardForm ? "cancel" : `pay with card — ${formatPrice(product.price + shippingCents)}`}
-      </button>
+      <div className="quick-buy-row">
+        <button
+          type="button"
+          className="quick-card-btn"
+          onClick={() => setShowCardForm((s) => !s)}
+        >
+          {showCardForm ? "cancel" : `pay with card — ${formatPrice(product.price + shippingCents)}`}
+        </button>
+        <span className="buy-hint buy-hint-inline">✦ or tap &amp; pay</span>
+      </div>
 
       {showCardForm && (
         <form onSubmit={handleCardPay} className="card-pay-form">

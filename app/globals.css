@@ -132,7 +132,7 @@ a {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #0a0a0a;
+  background: linear-gradient(145deg, #f4f4f7, #a7aab3);
   animation: sunGlow 2.2s ease-in-out infinite;
   flex-shrink: 0;
 }
@@ -182,6 +182,25 @@ a {
   padding: 6px 12px;
   border-radius: 100px;
   cursor: pointer;
+  margin-top: 4px;
+}
+
+/* pairs the plain-card button with its own small "tap & pay" pointer to
+   the wallet button just below, so a shopper who lands on the click
+   option first still knows a one-tap way is right there too */
+.quick-buy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  max-width: 260px;
+}
+
+.buy-hint-inline {
+  position: static;
+  transform: none;
+  width: auto;
+  white-space: nowrap;
   margin-top: 4px;
 }
 
@@ -265,6 +284,13 @@ a {
   font-size: 15px;
   font-weight: 700;
   color: var(--ink);
+}
+
+.lightbox-note {
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-dim);
 }
 
 .lightbox-close {
@@ -390,7 +416,7 @@ a {
    "floating" rather than just another button pinned to the corner */
 .floating-shuffle {
   position: fixed;
-  top: 78px;
+  top: 230px;
   left: 18px;
   z-index: 500;
   background: var(--card);
