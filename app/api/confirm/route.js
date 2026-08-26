@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { getProduct } from "@/lib/products";
 import { getExperience } from "@/lib/experiences";
+// Server-only -- never import this from a "use client" file. See the
+// comment at the top of lib/product-files.js for why it's kept separate
+// from lib/products.js.
+import { getFileUrl } from "@/lib/product-files";
 
 // A backup copy of the download link, sent to whatever email Apple/Google
 // Pay handed over automatically -- nobody types anything for this, it's
@@ -77,12 +81,14 @@ export async function POST(req) {
     }
 
     if (product.type === "digital") {
+      const fileUrl = getFileUrl(product.id);
+
       // Fire-and-forget -- doesn't hold up the response, and never fails
       // the sale if it errors.
       sendBackupDownloadEmail({
         to: intent.receipt_email,
         title: product.title,
-        fileUrl: product.fileUrl,
+        fileUrl,
       });
 
       return NextResponse.json({
@@ -90,7 +96,7 @@ export async function POST(req) {
         kind: "product",
         type: "digital",
         title: product.title,
-        fileUrl: product.fileUrl,
+        fileUrl,
       });
     }
 
