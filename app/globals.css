@@ -390,8 +390,8 @@ a {
    "floating" rather than just another button pinned to the corner */
 .floating-shuffle {
   position: fixed;
-  bottom: 22px;
-  right: 18px;
+  top: 78px;
+  left: 18px;
   z-index: 500;
   background: var(--card);
   border: 1px solid var(--card-line);
