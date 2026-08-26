@@ -646,6 +646,10 @@ function BuySection({ product, selectedSize = null, lazy = true }) {
             productId: product.id,
             size: selectedSize,
             price: product.price,
+            // Apple/Google Pay hand this over on their own -- the customer
+            // never types it in -- so a receipt and a backup download
+            // email can go out without adding any extra step for them.
+            payerEmail: ev.payerEmail,
           }),
         });
         const data = await res.json();

@@ -13,10 +13,19 @@ const SHIPPING_CENTS = 600;
 // if it's one of these exact, pre-approved amounts.
 const DIGITAL_PRICE_TIERS = [50, 75, 100];
 
+// A very loose sanity check -- not real validation, just enough to avoid
+// handing Stripe something obviously not an email (or a client sending
+// junk on purpose). Apple/Google Pay supply this themselves; it's never
+// typed in by hand for that flow.
+function looksLikeEmail(value) {
+  return typeof value === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 export async function POST(req) {
   try {
-    const { productId, experienceId, size, price } = await req.json();
+    const { productId, experienceId, size, price, payerEmail } = await req.json();
     const stripe = getStripe();
+    const receiptEmail = looksLikeEmail(payerEmail) ? payerEmail : undefined;
 
     // ---- a paid interactive feature (candle / marquee / oracle) ----
     if (experienceId) {
@@ -28,6 +37,7 @@ export async function POST(req) {
         amount: experience.price,
         currency: "usd",
         automatic_payment_methods: { enabled: true },
+        receipt_email: receiptEmail,
         metadata: {
           kind: "experience",
           experienceId: experience.id,
@@ -66,6 +76,7 @@ export async function POST(req) {
       amount: amount + shipping,
       currency: "usd",
       automatic_payment_methods: { enabled: true },
+      receipt_email: receiptEmail,
       metadata: {
         kind: "product",
         productId: product.id,
