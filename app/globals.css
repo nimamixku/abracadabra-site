@@ -484,6 +484,14 @@ a {
   color: #0b0b0d;
   transition: transform var(--dur-soft) var(--ease-soft), opacity var(--dur-soft) var(--ease-soft);
   font-family: inherit;
+  /* .buy-btn is also used on the <a download> success link, not just on
+     <button>s -- an <a> is inline by default, so without this the
+     width:100% above is silently ignored and the "button" shrinks to
+     hug its own text instead of filling its container. */
+  display: inline-block;
+  text-align: center;
+  text-decoration: none;
+  box-sizing: border-box;
 }
 
 .buy-btn:active {
@@ -595,6 +603,17 @@ a {
 
 .floating-buy-wrap .tiff-note {
   font-size: 10.5px;
+}
+
+/* The post-purchase "Download full-res TIFF" link reuses .buy-btn, which
+   is sized for the full-width space under a photo -- crammed into this
+   210px-wide floating box at full size it overwhelmed everything else.
+   Shrink it down to match the floating widget's own scale instead. */
+.floating-buy-wrap .buy-btn {
+  margin-top: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  border-radius: 12px;
 }
 
 @keyframes shuffleFloat {
