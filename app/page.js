@@ -1020,13 +1020,21 @@ export default function Home() {
         </span>
       </div>
       {stripePromise ? (
-        <LightboxProvider>
-          <Elements stripe={stripePromise}>
+        // Elements has to be the outermost wrapper here -- LightboxProvider
+        // renders its own expanded-photo buy section as a sibling of
+        // {children}, not nested inside it, so if Elements sat underneath
+        // LightboxProvider (as it did before) that buy section would be
+        // rendered outside the Elements tree. useStripe()/useElements()
+        // inside it would then throw "Could not find Elements context" the
+        // instant a digital photo was expanded -- crashing the whole page
+        // on every device, which is exactly what was happening.
+        <Elements stripe={stripePromise}>
+          <LightboxProvider>
             <PlayBalanceProvider>
               <Feed />
             </PlayBalanceProvider>
-          </Elements>
-        </LightboxProvider>
+          </LightboxProvider>
+        </Elements>
       ) : (
         <p style={{ padding: 20, color: "var(--ink-dim)" }}>
           Add your Stripe publishable key to .env.local to turn on buying —
