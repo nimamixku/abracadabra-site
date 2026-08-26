@@ -203,17 +203,18 @@ a {
   backdrop-filter: blur(3px);
 }
 
-/* hovers on the photo itself, up near the top -- higher on screen than
-   the floating shuffle button so the two never compete for the same
-   spot as the feed scrolls */
+/* hovers on the photo itself, roughly where it was pointed out -- a
+   translucent fuchsia chip that always sits above the floating shuffle
+   button in stacking order, so it's never the one that gets covered */
 .card-tap-pay {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: 48%;
+  right: 14px;
   margin-top: 0;
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.22);
-  color: #fff;
+  z-index: 600;
+  background: rgba(236, 72, 153, 0.22);
+  border-color: rgba(236, 72, 153, 0.45);
+  color: #ffd9ec;
 }
 
 /* the wallet button's row -- "tap & pay" sits to its right, near the
