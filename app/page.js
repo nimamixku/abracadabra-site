@@ -938,7 +938,7 @@ const BATCH_SIZE = 18;
 const POOL_SIZE = PRODUCTS.length + FEATURES.length;
 const MAX_FEED_ITEMS = Math.ceil(POOL_SIZE / BATCH_SIZE) * BATCH_SIZE;
 
-function Feed() {
+function Feed({ query }) {
   // A shuffled queue that gets drawn from in order -- guarantees every item
   // shows up once before anything repeats, rather than each batch being an
   // independent random draw (which could easily skip pieces or repeat
@@ -1058,31 +1058,51 @@ function Feed() {
 
   const atEnd = items.length >= MAX_FEED_ITEMS;
 
+  // A search takes over the feed entirely -- rather than shuffling and
+  // paginating, it just shows every title that matches, in catalog order,
+  // since that's a much smaller and more predictable list than the full
+  // shuffled scroll.
+  const trimmedQuery = (query || "").trim().toLowerCase();
+  const searching = trimmedQuery.length > 0;
+  const searchResults = searching
+    ? PRODUCTS.filter((p) => p.title.toLowerCase().includes(trimmedQuery))
+    : [];
+
   return (
     <>
       <ActiveCardContext.Provider value={registerCard}>
         <div className="feed">
-          {items.map((item) =>
-            item.feedType === "product" ? (
-              <ProductCard product={item.data} key={item.feedKey} />
-            ) : (
-              <FeatureCard feature={item.data} key={item.feedKey} />
-            )
-          )}
+          {searching
+            ? searchResults.map((p) => <ProductCard product={p} key={p.id} />)
+            : items.map((item) =>
+                item.feedType === "product" ? (
+                  <ProductCard product={item.data} key={item.feedKey} />
+                ) : (
+                  <FeatureCard feature={item.data} key={item.feedKey} />
+                )
+              )}
         </div>
       </ActiveCardContext.Provider>
-      <div className="feed-end" ref={sentinelRef} />
+      {!searching && <div className="feed-end" ref={sentinelRef} />}
       <p className="loading-more">
-        {atEnd ? "that's everything for now — refresh to shuffle a new set" : "keep scrolling — it reshuffles"}
+        {searching
+          ? searchResults.length === 0
+            ? "nothing matches that title"
+            : `${searchResults.length} match${searchResults.length === 1 ? "" : "es"}`
+          : atEnd
+          ? "that's everything for now — refresh to shuffle a new set"
+          : "keep scrolling — it reshuffles"}
       </p>
-      <button
-        type="button"
-        className="floating-shuffle"
-        onClick={reshuffle}
-        aria-label="Shuffle the feed"
-      >
-        ✦ shuffle
-      </button>
+      {!searching && (
+        <button
+          type="button"
+          className="floating-shuffle"
+          onClick={reshuffle}
+          aria-label="Shuffle the feed"
+        >
+          ✦ shuffle
+        </button>
+      )}
       {activeProduct && activeProduct.type === "digital" && (
         // Its own private Stripe session, same as every card's -- and a
         // fresh one each time the active photo changes (the key forces a
@@ -1116,12 +1136,38 @@ function FloatingBuy({ product }) {
 }
 
 export default function Home() {
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+
   return (
     <main className="page">
       <div className="masthead">
         <span className="brand">
           ABRACADABRA <span className="brand-sub">shop</span>
         </span>
+        <div className="search-wrap">
+          {searchOpen && (
+            <input
+              type="text"
+              className="search-input"
+              placeholder="search title…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              autoFocus
+            />
+          )}
+          <button
+            type="button"
+            className="search-toggle"
+            aria-label={searchOpen ? "Close search" : "Search by title"}
+            onClick={() => {
+              setSearchOpen((s) => !s);
+              if (searchOpen) setQuery("");
+            }}
+          >
+            <span className="search-icon" aria-hidden="true" />
+          </button>
+        </div>
       </div>
       {stripePromise ? (
         // No single shared <Elements> wrapper here anymore -- Stripe only
@@ -1132,7 +1178,7 @@ export default function Home() {
         // used, so none of them ever compete with each other.
         <LightboxProvider>
           <PlayBalanceProvider>
-            <Feed />
+            <Feed query={query} />
           </PlayBalanceProvider>
         </LightboxProvider>
       ) : (

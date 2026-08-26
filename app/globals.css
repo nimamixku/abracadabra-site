@@ -71,6 +71,72 @@ a {
   text-transform: uppercase;
 }
 
+/* tiny, discreet -- a small silvery-black glass icon that sits flush with
+   the brand title on the right, only turning into an actual input once
+   someone taps it */
+.search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-direction: row-reverse;
+}
+
+.search-toggle {
+  width: 28px;
+  height: 28px;
+  border-radius: 100px;
+  border: 1px solid var(--card-line);
+  background: rgba(255, 255, 255, 0.04);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.search-icon {
+  display: block;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1.5px solid #9a9ca3;
+  position: relative;
+}
+
+.search-icon::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 1.5px;
+  background: #9a9ca3;
+  bottom: -4px;
+  right: -3px;
+  transform: rotate(45deg);
+  border-radius: 1px;
+}
+
+.search-input {
+  width: 130px;
+  max-width: 38vw;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 100px;
+  border: 1px solid var(--card-line);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  font-family: inherit;
+}
+
+.search-input::placeholder {
+  color: var(--ink-dim);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
 /* ---- feed ---- */
 .feed {
   display: flex;
