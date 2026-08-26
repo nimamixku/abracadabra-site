@@ -185,23 +185,35 @@ a {
   margin-top: 4px;
 }
 
-/* pairs the plain-card button with its own small "tap & pay" pointer to
-   the wallet button just below, so a shopper who lands on the click
-   option first still knows a one-tap way is right there too */
-.quick-buy-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  max-width: 260px;
+/* small pill, up near the price rather than buried by the buttons, so
+   the one-tap option reads as a headline feature and not fine print --
+   translucent white like a soft chip of glass, not a solid button */
+.tap-pay-chip {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 9px;
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  backdrop-filter: blur(3px);
 }
 
-.buy-hint-inline {
-  position: static;
-  transform: none;
-  width: auto;
-  white-space: nowrap;
-  margin-top: 4px;
+/* hovers on the photo itself, up near the top -- higher on screen than
+   the floating shuffle button so the two never compete for the same
+   spot as the feed scrolls */
+.card-tap-pay {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  margin-top: 0;
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #fff;
 }
 
 /* the wallet button's row -- "tap & pay" sits to its right, near the
@@ -284,6 +296,12 @@ a {
   font-size: 15px;
   font-weight: 700;
   color: var(--ink);
+}
+
+.lightbox-title .tap-pay-chip {
+  margin-top: 0;
+  margin-left: 8px;
+  vertical-align: middle;
 }
 
 .lightbox-note {

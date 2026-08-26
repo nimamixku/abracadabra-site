@@ -127,6 +127,7 @@ function LightboxProvider({ children }) {
             <div className="lightbox-buy" onClick={(e) => e.stopPropagation()}>
               <p className="lightbox-title">
                 {product.title} · {formatPrice(product.price)}
+                <span className="tap-pay-chip">✦ tap &amp; pay</span>
               </p>
               <p className="lightbox-note">
                 You'll get the full-res TIFF file at 300 DPI — built for
@@ -751,17 +752,25 @@ function BuySection({ product, selectedSize = null, lazy = true }) {
   }
 
   return (
-    <div ref={wrapRef}>
-      <div className="quick-buy-row">
-        <button
-          type="button"
-          className="quick-card-btn"
-          onClick={() => setShowCardForm((s) => !s)}
-        >
-          {showCardForm ? "cancel" : `pay with card — ${formatPrice(product.price + shippingCents)}`}
-        </button>
-        <span className="buy-hint buy-hint-inline">✦ or tap &amp; pay</span>
-      </div>
+    <div style={{ position: "relative" }}>
+      {/* A fixed-size marker, not the button/iframe stack itself -- if the
+          observed element's own size changes every time nearView flips
+          (which mounting/unmounting the wallet button does), the resize
+          can retrigger the observer and flip it right back, in a tight
+          loop that pegs the CPU instantly. Watching a 1px marker instead
+          keeps what's being measured stable no matter what renders below. */}
+      <span
+        ref={wrapRef}
+        aria-hidden="true"
+        style={{ position: "absolute", top: 0, left: 0, width: 1, height: 1 }}
+      />
+      <button
+        type="button"
+        className="quick-card-btn"
+        onClick={() => setShowCardForm((s) => !s)}
+      >
+        {showCardForm ? "cancel" : `pay with card — ${formatPrice(product.price + shippingCents)}`}
+      </button>
 
       {showCardForm && (
         <form onSubmit={handleCardPay} className="card-pay-form">
@@ -835,6 +844,7 @@ function ProductCard({ product }) {
           <span className="expand-hint" aria-hidden="true" />
           <span className="expand-label">expand</span>
         </button>
+        <span className="tap-pay-chip card-tap-pay">✦ tap &amp; pay</span>
       </div>
       <div className="card-body">
         <div className="card-row">
