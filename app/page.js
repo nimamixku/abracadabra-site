@@ -565,6 +565,7 @@ function BuySection({ product, selectedSize = null, lazy = true }) {
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [showCardForm, setShowCardForm] = useState(false);
+  const [cardEmail, setCardEmail] = useState("");
 
   const shippingCents = product.type === "physical" ? SHIPPING_CENTS : 0;
 
@@ -724,6 +725,7 @@ function BuySection({ product, selectedSize = null, lazy = true }) {
           productId: product.id,
           size: selectedSize,
           price: product.price,
+          payerEmail: cardEmail,
         }),
       });
       const data = await res.json();
@@ -810,6 +812,16 @@ function BuySection({ product, selectedSize = null, lazy = true }) {
           <div className="card-element-wrap">
             <CardElement options={CARD_ELEMENT_OPTIONS} />
           </div>
+          {/* Quiet and entirely optional -- the download works the exact
+              same either way, this just also emails a receipt and a
+              backup copy of the link if someone bothers to fill it in. */}
+          <input
+            type="email"
+            className="card-email-input"
+            placeholder="email for receipt + backup link (optional)"
+            value={cardEmail}
+            onChange={(e) => setCardEmail(e.target.value)}
+          />
           <button className="buy-btn" type="submit" disabled={status === "processing"}>
             {status === "processing"
               ? "Processing…"

@@ -232,6 +232,32 @@ a {
   gap: 10px;
 }
 
+/* quiet and easy to skip -- small, low-contrast, no border emphasis, so
+   it reads as an offered extra rather than a required step */
+.card-email-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--ink-dim);
+  font-family: inherit;
+  /* 16px avoids iOS auto-zooming the page when this gets focused */
+  font-size: 16px;
+}
+
+.card-email-input::placeholder {
+  color: var(--ink-dim);
+  font-size: 12px;
+}
+
+.card-email-input:focus {
+  outline: none;
+  border-color: var(--card-line);
+  color: var(--ink);
+}
+
 .card-element-wrap {
   background: var(--card);
   border: 1px solid var(--card-line);
