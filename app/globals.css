@@ -203,20 +203,6 @@ a {
   backdrop-filter: blur(3px);
 }
 
-/* hovers on the photo itself, roughly where it was pointed out -- a
-   translucent fuchsia chip that always sits above the floating shuffle
-   button in stacking order, so it's never the one that gets covered */
-.card-tap-pay {
-  position: absolute;
-  top: 48%;
-  right: 14px;
-  margin-top: 0;
-  z-index: 600;
-  background: rgba(236, 72, 153, 0.22);
-  border-color: rgba(236, 72, 153, 0.45);
-  color: #ffd9ec;
-}
-
 /* the wallet button's row -- "tap & pay" sits to its right, near the
    button itself rather than stacked above it */
 .buy-row {
@@ -452,6 +438,27 @@ a {
 
 .floating-shuffle:active {
   transform: translateY(0) scale(0.96);
+}
+
+/* sits right above the shuffle button, floating/bobbing the same way, so
+   the two read as a matched pair rather than one being an afterthought */
+.floating-tap-pay {
+  position: fixed;
+  top: 178px;
+  left: 18px;
+  z-index: 500;
+  display: inline-block;
+  padding: 10px 18px;
+  border-radius: 100px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  background: rgba(236, 72, 153, 0.22);
+  border: 1px solid rgba(236, 72, 153, 0.45);
+  color: #ffd9ec;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  animation: shuffleFloat 3s ease-in-out infinite;
 }
 
 @keyframes shuffleFloat {

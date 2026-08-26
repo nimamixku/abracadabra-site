@@ -844,7 +844,6 @@ function ProductCard({ product }) {
           <span className="expand-hint" aria-hidden="true" />
           <span className="expand-label">expand</span>
         </button>
-        <span className="tap-pay-chip card-tap-pay">✦ tap &amp; pay</span>
       </div>
       <div className="card-body">
         <div className="card-row">
@@ -1005,6 +1004,9 @@ function Feed() {
       >
         ✦ shuffle
       </button>
+      <span className="floating-tap-pay" aria-hidden="true">
+        ✦ tap &amp; pay
+      </span>
     </>
   );
 }
