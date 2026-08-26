@@ -100,7 +100,7 @@ a {
   width: 11px;
   height: 11px;
   border-radius: 50%;
-  border: 1.5px solid #9a9ca3;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
   position: relative;
 }
 
@@ -109,7 +109,7 @@ a {
   position: absolute;
   width: 6px;
   height: 1.5px;
-  background: #9a9ca3;
+  background: rgba(255, 255, 255, 0.35);
   bottom: -4px;
   right: -3px;
   transform: rotate(45deg);
@@ -117,10 +117,14 @@ a {
 }
 
 .search-input {
-  width: 130px;
+  width: 120px;
   max-width: 38vw;
-  font-size: 12px;
-  padding: 6px 12px;
+  /* iPhones force the whole page to zoom in on any input whose text is
+     smaller than 16px on focus -- that's the "everything zoomed" glitch.
+     16px is the smallest size that avoids it, so the box stays a little
+     wider than it would otherwise need to be, rather than fighting it. */
+  font-size: 16px;
+  padding: 5px 12px;
   border-radius: 100px;
   border: 1px solid var(--card-line);
   background: rgba(255, 255, 255, 0.05);
