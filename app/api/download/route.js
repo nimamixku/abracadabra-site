@@ -58,12 +58,30 @@ export async function GET(req) {
 
   let upstream;
   try {
-    upstream = await fetch(fileUrl);
-  } catch {
-    return NextResponse.json({ error: "Could not retrieve file." }, { status: 502 });
+    // no-store: this is a per-purchase file fetch, not something Next.js
+    // should ever try to cache/reuse across requests.
+    upstream = await fetch(fileUrl, { cache: "no-store" });
+  } catch (err) {
+    console.error("Download proxy: upstream fetch threw", err);
+    return NextResponse.json(
+      { error: "Could not retrieve file.", detail: String(err && err.message) },
+      { status: 502 }
+    );
   }
   if (!upstream.ok || !upstream.body) {
-    return NextResponse.json({ error: "Could not retrieve file." }, { status: 502 });
+    console.error(
+      "Download proxy: upstream responded",
+      upstream.status,
+      upstream.statusText
+    );
+    return NextResponse.json(
+      {
+        error: "Could not retrieve file.",
+        upstreamStatus: upstream.status,
+        upstreamStatusText: upstream.statusText,
+      },
+      { status: 502 }
+    );
   }
 
   // A clean, human-readable filename for the download, e.g. "her-curves"
