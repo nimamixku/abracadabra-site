@@ -60,7 +60,21 @@ export async function GET(req) {
   try {
     // no-store: this is a per-purchase file fetch, not something Next.js
     // should ever try to cache/reuse across requests.
-    upstream = await fetch(fileUrl, { cache: "no-store" });
+    //
+    // The explicit User-Agent/Accept headers matter here -- a direct
+    // browser request to the same storage URL works fine, but a bare
+    // server-side fetch() with no headers was getting rejected with a
+    // 403, most likely some bot/hotlink protection in front of the
+    // storage CDN treating a headerless script request as suspicious.
+    // Making this look like an ordinary browser request avoids that.
+    upstream = await fetch(fileUrl, {
+      cache: "no-store",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+        Accept: "*/*",
+      },
+    });
   } catch (err) {
     console.error("Download proxy: upstream fetch threw", err);
     return NextResponse.json(
