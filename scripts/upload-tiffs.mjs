@@ -1,17 +1,24 @@
 // One-time migration script: uploads every real TIFF in _source-files/
-// that doesn't already have a real download link to Cloudflare R2, then
-// writes lib/product-files.js with the real URLs (see that file's own
-// comment for why it's kept separate from lib/products.js).
+// that isn't already sitting on Cloudflare R2 -- including anything still
+// on Vercel Blob -- and writes lib/product-files.js with the real URLs
+// (see that file's own comment for why it's kept separate from
+// lib/products.js).
 //
-// Switched from Vercel Blob to Cloudflare R2 because Blob's free "Hobby"
-// plan caps total storage at 1GB -- R2's free tier goes up to 10GB, which
-// comfortably covers this whole catalog, and R2 never bills unless that's
-// exceeded.
+// Switched from Vercel Blob to Cloudflare R2 (fully, now) because Blob's
+// free "Hobby" plan caps AVERAGE storage at 1GB, and once you go over it,
+// Vercel doesn't just block new uploads -- it blocks ALL requests to that
+// store, including reads of files that were already there. That's what
+// happened here: the store hit its cap and every existing download
+// started failing with a 403, for every visitor, with no way to fix it
+// from code. R2's free tier goes up to 10GB (comfortably covers this
+// whole ~2.9GB catalog) and never blocks access -- it just bills a few
+// cents per GB if you ever go over, no hard cutoff.
 //
-// Safe to re-run: it only re-uploads entries that are still marked
-// PENDING_TIFF_UPLOAD in the existing lib/product-files.js, so anything
-// already uploaded -- including the 57 pieces already on Vercel Blob from
-// before -- is left completely untouched.
+// Safe to re-run: an entry only gets (re-)uploaded if its current value
+// in lib/product-files.js is either "PENDING_TIFF_UPLOAD" or still a
+// vercel-storage.com URL. Anything already migrated to R2 (a
+// *.r2.dev URL) is left completely untouched, so re-running this after a
+// partial failure never re-uploads work that's already done.
 //
 // Run from the project root, with these five env vars set (see the
 // project notes for where to find each one in the Cloudflare dashboard):
@@ -175,19 +182,27 @@ async function loadExisting() {
   }
 }
 
+// True only for a URL that's already safely on R2 -- everything else
+// (pending, or still pointing at vercel-storage.com) needs (re-)uploading.
+function isAlreadyOnR2(url) {
+  return typeof url === "string" && url.includes(".r2.dev/");
+}
+
 async function main() {
   const existing = await loadExisting();
   const entries = Object.entries(MAPPING);
   const results = { ...existing };
   let uploaded = 0;
+  let migratedFromBlob = 0;
   let skipped = 0;
 
   for (const [productId, filename] of entries) {
     const already = existing[productId];
-    if (already && already !== "PENDING_TIFF_UPLOAD") {
+    if (isAlreadyOnR2(already)) {
       skipped++;
       continue;
     }
+    const wasOnBlob = already && already.includes("vercel-storage.com");
 
     const filePath = path.join(SOURCE_DIR, filename);
     try {
@@ -211,9 +226,16 @@ async function main() {
       const url = `${R2_PUBLIC_URL}/${key}`;
       results[productId] = url;
       uploaded++;
-      console.log(`[${uploaded + skipped}/${entries.length}] ${productId} <- ${filename} -> ${url}`);
+      if (wasOnBlob) migratedFromBlob++;
+      const tag = wasOnBlob ? "migrated from Blob" : "new upload";
+      console.log(
+        `[${uploaded + skipped}/${entries.length}] (${tag}) ${productId} <- ${filename} -> ${url}`
+      );
     } catch (err) {
       console.error(`FAILED: ${productId} (${filename}): ${err.message}`);
+      // Keep whatever was there before (even a dead Blob URL) rather than
+      // silently downgrading it to "pending" -- makes a partial failure
+      // obvious and easy to diff, instead of quietly losing information.
       results[productId] = already || "PENDING_TIFF_UPLOAD";
     }
   }
@@ -248,10 +270,26 @@ export function getFileUrl(id) {
 `;
 
   await writeFile(OUT_FILE, fileContents);
-  const totalDone = Object.values(results).filter((v) => v !== "PENDING_TIFF_UPLOAD").length;
-  console.log(`\nWrote ${OUT_FILE} -- ${totalDone}/${entries.length} real URLs total (${uploaded} uploaded just now, ${skipped} already done before).`);
-  if (totalDone < entries.length) {
-    console.log("Some are still pending -- re-run this script after checking the errors above.");
+  const onR2 = Object.values(results).filter(isAlreadyOnR2).length;
+  const stillOnBlob = Object.values(results).filter(
+    (v) => typeof v === "string" && v.includes("vercel-storage.com")
+  ).length;
+  const stillPending = entries.length - onR2 - stillOnBlob;
+  console.log(
+    `\nWrote ${OUT_FILE} -- ${onR2}/${entries.length} on R2 now ` +
+      `(${uploaded} uploaded just now, of which ${migratedFromBlob} were migrated off Blob; ${skipped} already on R2 before).`
+  );
+  if (stillOnBlob > 0) {
+    console.log(
+      `${stillOnBlob} entr${stillOnBlob === 1 ? "y is" : "ies are"} still pointing at Vercel Blob -- ` +
+        `those will keep failing for customers until this script uploads them successfully. Re-run after checking the FAILED lines above.`
+    );
+  }
+  if (stillPending > 0) {
+    console.log(`${stillPending} entr${stillPending === 1 ? "y" : "ies"} still pending -- re-run after checking the errors above.`);
+  }
+  if (stillOnBlob === 0 && stillPending === 0) {
+    console.log("All 90 are on R2 -- nothing depends on Vercel Blob anymore.");
   }
 }
 
