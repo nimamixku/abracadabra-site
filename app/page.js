@@ -690,7 +690,11 @@ function BuySection({ product, selectedSize = null, lazy = true }) {
         const confirmData = await confirmRes.json();
         if (!confirmRes.ok) throw new Error(confirmData.error || "Could not confirm purchase.");
 
-        setResult(confirmData);
+        // Carried along so the download link can route through our own
+        // /api/download instead of linking straight to the storage URL --
+        // see that route for why (Safari on iPhone otherwise just displays
+        // the raw file instead of saving it).
+        setResult({ ...confirmData, paymentIntentId: intent.id });
         setStatus("success");
       } catch (err) {
         ev.complete("fail");
@@ -752,7 +756,11 @@ function BuySection({ product, selectedSize = null, lazy = true }) {
       const confirmData = await confirmRes.json();
       if (!confirmRes.ok) throw new Error(confirmData.error || "Could not confirm purchase.");
 
-      setResult(confirmData);
+      // Carried along so the download link can route through our own
+      // /api/download instead of linking straight to the storage URL --
+      // see that route for why (Safari on iPhone otherwise just displays
+      // the raw file instead of saving it).
+      setResult({ ...confirmData, paymentIntentId: confirmResult.paymentIntent.id });
       setStatus("success");
     } catch (err) {
       setStatus("error");
@@ -765,7 +773,11 @@ function BuySection({ product, selectedSize = null, lazy = true }) {
       <div ref={wrapRef} style={{ marginTop: 14 }}>
         {result.type === "digital" ? (
           <>
-            <a className="buy-btn" href={result.fileUrl} download>
+            <a
+              className="buy-btn"
+              href={`/api/download?pi=${encodeURIComponent(result.paymentIntentId)}`}
+              download
+            >
               Purchased ✓ — Download full-res TIFF
             </a>
             <p className="tiff-note">
