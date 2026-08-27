@@ -778,14 +778,20 @@ function BuySection({ product, selectedSize = null, lazy = true }) {
               href={`/api/download?pi=${encodeURIComponent(result.paymentIntentId)}`}
               download
             >
-              Purchased ✓ — Download full-res TIFF
+              Purchased ✓ — Download full-res TIFF (for printing)
             </a>
+            {result.previewImage && (
+              <a className="buy-btn" href={result.previewImage} download>
+                Also download preview JPG (for phone & screen)
+              </a>
+            )}
             <p className="tiff-note">
-              Heads up: this file is built for high-quality physical prints,
+              Heads up: the TIFF is built for high-quality physical prints,
               not for viewing on a phone or laptop screen — it may look soft
               or oversized there. That's normal, not a flaw. Open it in a
               printing app (or send it to a print shop) to see it at full
-              quality.
+              quality. The JPG above is the one to use for viewing or
+              sharing on a screen.
             </p>
           </>
         ) : (

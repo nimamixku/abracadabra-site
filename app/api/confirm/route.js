@@ -10,7 +10,7 @@ import { getExperience } from "@/lib/experiences";
 // bad address, Resend having a bad moment) the purchase itself still
 // succeeded and the on-page download still works, so this never blocks
 // or fails the actual sale.
-async function sendBackupDownloadEmail({ to, title, downloadUrl }) {
+async function sendBackupDownloadEmail({ to, title, downloadUrl, previewUrl }) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.RESEND_FROM_EMAIL;
   if (!apiKey || !from || !to) return;
@@ -27,9 +27,10 @@ async function sendBackupDownloadEmail({ to, title, downloadUrl }) {
         to,
         subject: `Your download: ${title}`,
         html: `
-          <p>Thanks for your purchase from ABRACADABRA — here's your download link again, in case you missed grabbing it on the page:</p>
-          <p><a href="${downloadUrl}">Download ${title} (full-res TIFF)</a></p>
-          <p style="color:#888;font-size:13px">This file is built for high-quality physical prints, at 300 DPI — it may look soft or oversized on a phone or laptop screen. That's expected; it'll look sharp once printed.</p>
+          <p>Thanks for your purchase from ABRACADABRA — here are your download links again, in case you missed grabbing them on the page:</p>
+          <p><a href="${downloadUrl}">Download ${title} (full-res TIFF, for printing)</a></p>
+          ${previewUrl ? `<p><a href="${previewUrl}">Download ${title} (preview JPG, for viewing on a screen)</a></p>` : ""}
+          <p style="color:#888;font-size:13px">The TIFF is built for high-quality physical prints, at 300 DPI — it may look soft or oversized on a phone or laptop screen. That's expected; it'll look sharp once printed. The JPG is the one to use for viewing or sharing on a screen.</p>
         `,
       }),
     });
@@ -77,12 +78,14 @@ export async function POST(req) {
     }
 
     if (product.type === "digital") {
+      const origin = new URL(req.url).origin;
       // Points at our own /api/download route rather than the raw
       // storage URL -- see that route for why (it's what makes the
       // download actually save instead of just displaying on iPhone).
-      const downloadUrl = `${new URL(req.url).origin}/api/download?pi=${encodeURIComponent(
-        intent.id
-      )}`;
+      const downloadUrl = `${origin}/api/download?pi=${encodeURIComponent(intent.id)}`;
+      // The preview jpg is already a public static file, so it's just a
+      // plain link -- no need to route it through anything.
+      const previewUrl = product.image ? `${origin}${product.image}` : null;
 
       // Fire-and-forget -- doesn't hold up the response, and never fails
       // the sale if it errors.
@@ -90,6 +93,7 @@ export async function POST(req) {
         to: intent.receipt_email,
         title: product.title,
         downloadUrl,
+        previewUrl,
       });
 
       return NextResponse.json({
@@ -98,6 +102,12 @@ export async function POST(req) {
         type: "digital",
         title: product.title,
         paymentIntentId: intent.id,
+        // The same low-res preview jpg already shown on the product card
+        // -- already public, no gating needed. Handed back here so the
+        // customer can grab an easy-to-view copy alongside the print
+        // TIFF, clearly labeled so the two never get confused for one
+        // another.
+        previewImage: product.image,
       });
     }
 
