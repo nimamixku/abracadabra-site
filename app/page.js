@@ -243,8 +243,14 @@ const PURCHASE_VISIBLE_MS = 10 * 60 * 1000;
 
 const PurchaseBannerContext = createContext(null);
 
+// Falls back to a harmless no-op instead of null if a BuySection ever ends
+// up rendered somewhere outside PurchaseBannerProvider (which is exactly
+// what crashed the expanded photo view -- LightboxProvider renders its own
+// copy of BuySection as a sibling of {children}, not inside it, so it sat
+// outside PurchaseBannerProvider's reach). This keeps that from being able
+// to crash the whole page again if the tree ever gets rearranged.
 function usePurchaseBanner() {
-  return useContext(PurchaseBannerContext);
+  return useContext(PurchaseBannerContext) || { announcePurchase: () => {} };
 }
 
 function PurchaseBannerProvider({ children }) {
@@ -1381,13 +1387,13 @@ export default function Home() {
         // photo view, plus an "out of plays" prompt) all mounted at once.
         // Each one now brings its own private <Elements> right where it's
         // used, so none of them ever compete with each other.
-        <LightboxProvider>
-          <PurchaseBannerProvider>
+        <PurchaseBannerProvider>
+          <LightboxProvider>
             <PlayBalanceProvider>
               <Feed query={query} />
             </PlayBalanceProvider>
-          </PurchaseBannerProvider>
-        </LightboxProvider>
+          </LightboxProvider>
+        </PurchaseBannerProvider>
       ) : (
         <p style={{ padding: 20, color: "var(--ink-dim)" }}>
           Add your Stripe publishable key to .env.local to turn on buying —
