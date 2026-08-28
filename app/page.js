@@ -223,6 +223,152 @@ function PlayBalanceProvider({ children }) {
   );
 }
 
+// ---- persistent "you just bought this" banner ----
+// BuySection's own inline "Purchased ✓" state only exists on that one
+// card -- if the feed reshuffles, or a long scroll cycles back through the
+// catalog, that exact card can unmount and remount as a fresh (unpurchased)
+// instance, and the download buttons are gone. A customer who scrolled on
+// or hit their browser's back button had no way back to them.
+//
+// This keeps a small, separate record of anything just bought, pinned to
+// the bottom of the screen regardless of what the feed itself is doing,
+// and backed by sessionStorage so it survives a reload or a same-tab
+// back/forward navigation too -- not just a card staying mounted. It's not
+// a substitute for the backup email, just a same-session safety net.
+const PURCHASES_STORAGE_KEY = "abracadabra-recent-purchases-v1";
+// Comfortably longer than "twenty seconds no matter what" -- long enough
+// that someone who steps away to open Files/Photos and comes back still
+// finds it, but not so long a tab left open all day keeps showing it.
+const PURCHASE_VISIBLE_MS = 10 * 60 * 1000;
+
+const PurchaseBannerContext = createContext(null);
+
+function usePurchaseBanner() {
+  return useContext(PurchaseBannerContext);
+}
+
+function PurchaseBannerProvider({ children }) {
+  const [purchases, setPurchases] = useState([]); // [{ id, title, tiffUrl, previewUrl, at }]
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = window.sessionStorage.getItem(PURCHASES_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setPurchases((parsed || []).filter((p) => Date.now() - p.at < PURCHASE_VISIBLE_MS));
+      }
+    } catch {
+      // start fresh
+    }
+    setLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!loaded) return;
+    try {
+      window.sessionStorage.setItem(PURCHASES_STORAGE_KEY, JSON.stringify(purchases));
+    } catch {
+      // ignore
+    }
+  }, [purchases, loaded]);
+
+  // Sweeps out anything past its window every so often, so a tab left open
+  // for hours doesn't keep an ancient purchase pinned to the screen.
+  useEffect(() => {
+    const id = setInterval(() => {
+      setPurchases((prev) => prev.filter((p) => Date.now() - p.at < PURCHASE_VISIBLE_MS));
+    }, 15000);
+    return () => clearInterval(id);
+  }, []);
+
+  function announcePurchase(purchase) {
+    setPurchases((prev) => [
+      { ...purchase, at: Date.now() },
+      ...prev.filter((p) => p.id !== purchase.id),
+    ]);
+  }
+
+  function dismiss(id) {
+    setPurchases((prev) => prev.filter((p) => p.id !== id));
+  }
+
+  return (
+    <PurchaseBannerContext.Provider value={{ announcePurchase }}>
+      {children}
+      {purchases.length > 0 && (
+        <div
+          style={{
+            position: "fixed",
+            left: 12,
+            right: 12,
+            bottom: 12,
+            zIndex: 60,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            maxWidth: 420,
+            margin: "0 auto",
+          }}
+        >
+          {purchases.map((p) => (
+            <div
+              key={p.id}
+              style={{
+                background: "var(--card)",
+                border: "1px solid var(--card-line)",
+                borderRadius: 12,
+                padding: "12px 14px",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "baseline",
+                  marginBottom: 8,
+                  gap: 10,
+                }}
+              >
+                <p style={{ color: "var(--success)", fontWeight: 700, margin: 0, fontSize: 14 }}>
+                  Purchased ✓ {p.title}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => dismiss(p.id)}
+                  aria-label="Dismiss"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "var(--ink-dim)",
+                    fontSize: 16,
+                    cursor: "pointer",
+                    lineHeight: 1,
+                    padding: 0,
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <a className="buy-btn" href={p.tiffUrl} download>
+                  Download full-res TIFF (for printing)
+                </a>
+                {p.previewUrl && (
+                  <a className="buy-btn" href={p.previewUrl} download>
+                    Also download preview JPG (for phone & screen)
+                  </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </PurchaseBannerContext.Provider>
+  );
+}
+
 // A generic Apple-Pay-in-place button, reusable for both a product and the
 // play pack -- calls onSuccess(paymentIntentId) once Stripe confirms.
 function InlineBuyButton({ label, amountCents, onSuccess }) {
@@ -558,6 +704,7 @@ function FeatureCard({ feature }) {
 function BuySection({ product, selectedSize = null, lazy = true }) {
   const stripe = useStripe();
   const elements = useElements();
+  const { announcePurchase } = usePurchaseBanner();
 
   const [paymentRequest, setPaymentRequest] = useState(null);
   const [canApplePay, setCanApplePay] = useState(null); // null = still checking
@@ -696,6 +843,16 @@ function BuySection({ product, selectedSize = null, lazy = true }) {
         // the raw file instead of saving it).
         setResult({ ...confirmData, paymentIntentId: intent.id });
         setStatus("success");
+        if (confirmData.type === "digital") {
+          announcePurchase({
+            id: intent.id,
+            title: confirmData.title || product.title,
+            tiffUrl: `/api/download?pi=${encodeURIComponent(intent.id)}`,
+            previewUrl: confirmData.previewImage
+              ? `/api/download-preview?pi=${encodeURIComponent(intent.id)}`
+              : null,
+          });
+        }
       } catch (err) {
         ev.complete("fail");
         setStatus("error");
@@ -762,6 +919,16 @@ function BuySection({ product, selectedSize = null, lazy = true }) {
       // the raw file instead of saving it).
       setResult({ ...confirmData, paymentIntentId: confirmResult.paymentIntent.id });
       setStatus("success");
+      if (confirmData.type === "digital") {
+        announcePurchase({
+          id: confirmResult.paymentIntent.id,
+          title: confirmData.title || product.title,
+          tiffUrl: `/api/download?pi=${encodeURIComponent(confirmResult.paymentIntent.id)}`,
+          previewUrl: confirmData.previewImage
+            ? `/api/download-preview?pi=${encodeURIComponent(confirmResult.paymentIntent.id)}`
+            : null,
+        });
+      }
     } catch (err) {
       setStatus("error");
       setErrorMsg(err.message || "Something went wrong.");
@@ -781,7 +948,11 @@ function BuySection({ product, selectedSize = null, lazy = true }) {
               Purchased ✓ — Download full-res TIFF (for printing)
             </a>
             {result.previewImage && (
-              <a className="buy-btn" href={result.previewImage} download>
+              <a
+                className="buy-btn"
+                href={`/api/download-preview?pi=${encodeURIComponent(result.paymentIntentId)}`}
+                download
+              >
                 Also download preview JPG (for phone & screen)
               </a>
             )}
@@ -1211,9 +1382,11 @@ export default function Home() {
         // Each one now brings its own private <Elements> right where it's
         // used, so none of them ever compete with each other.
         <LightboxProvider>
-          <PlayBalanceProvider>
-            <Feed query={query} />
-          </PlayBalanceProvider>
+          <PurchaseBannerProvider>
+            <PlayBalanceProvider>
+              <Feed query={query} />
+            </PlayBalanceProvider>
+          </PurchaseBannerProvider>
         </LightboxProvider>
       ) : (
         <p style={{ padding: 20, color: "var(--ink-dim)" }}>
