@@ -93,12 +93,12 @@ function ProductRow({ product }) {
       {product.description && <p style={styles.dim}>{product.description}</p>}
       <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
         <label style={styles.dim}>
-          Full-res file{" "}
+          Full-res file (what the customer downloads){" "}
           <input type="file" onChange={(e) => handleFile("full", e)} />
         </label>
         <label style={styles.dim}>
-          Preview image{" "}
-          <input type="file" accept="image/*" onChange={(e) => handleFile("preview_image", e)} />
+          Preview image (what the customer sees online){" "}
+          <input type="file" onChange={(e) => handleFile("preview_image", e)} />
         </label>
       </div>
       {status.startsWith("uploading") && <p style={styles.dim}>Uploading…</p>}

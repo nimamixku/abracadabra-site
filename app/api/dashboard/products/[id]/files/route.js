@@ -14,7 +14,11 @@ export async function POST(req, { params }) {
   const { tenant } = await getSessionTenant(req.cookies);
   if (!tenant) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
-  const productId = Number.parseInt(params.id, 10);
+  // Next.js 16: dynamic route params are async and must be awaited before
+  // reading properties off them -- reading params.id directly here always
+  // produced undefined, so productId silently became NaN on every request.
+  const { id } = await params;
+  const productId = Number.parseInt(id, 10);
   const { kind, key, contentType } = await req.json();
   if (!ALLOWED_KINDS.has(kind) || !key || !contentType) {
     return NextResponse.json({ error: "Missing or invalid file details." }, { status: 400 });
