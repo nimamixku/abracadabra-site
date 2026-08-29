@@ -1,0 +1,196 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+const styles = {
+  input: {
+    width: "100%",
+    padding: "0.65rem 0.9rem",
+    borderRadius: 10,
+    border: "1px solid var(--card-line)",
+    background: "var(--bg)",
+    color: "var(--ink)",
+    fontSize: "0.95rem",
+    marginTop: "0.5rem",
+  },
+  button: {
+    padding: "0.6rem 1rem",
+    borderRadius: 10,
+    border: "none",
+    background: "var(--accent)",
+    color: "#1a0f24",
+    fontWeight: 600,
+    cursor: "pointer",
+    marginTop: "0.75rem",
+  },
+  card: {
+    background: "var(--card)",
+    border: "1px solid var(--card-line)",
+    borderRadius: 12,
+    padding: "1rem",
+    marginTop: "0.75rem",
+  },
+  dim: { color: "var(--ink-dim)", fontSize: "0.85rem" },
+};
+
+function formatPrice(cents) {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+// Uploads a full-res file or preview image for one product: gets a
+// presigned URL, PUTs the file straight to R2, then tells the platform
+// which R2 key belongs to this product. Mirrors the two-step flow
+// /api/dashboard/uploads and /api/dashboard/products/[id]/files exist for.
+async function uploadProductFile({ productId, kind, file }) {
+  const presignRes = await fetch("/api/dashboard/uploads", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ productId, kind, filename: file.name, contentType: file.type }),
+  });
+  const presignData = await presignRes.json();
+  if (!presignRes.ok) throw new Error(presignData.error || "Could not start upload.");
+
+  const putRes = await fetch(presignData.uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": file.type },
+    body: file,
+  });
+  if (!putRes.ok) throw new Error("Upload to storage failed.");
+
+  const recordRes = await fetch(`/api/dashboard/products/${productId}/files`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ kind, key: presignData.key, contentType: file.type }),
+  });
+  const recordData = await recordRes.json();
+  if (!recordRes.ok) throw new Error(recordData.error || "Could not save file record.");
+}
+
+function ProductRow({ product }) {
+  const [status, setStatus] = useState("idle");
+  const [error, setError] = useState("");
+
+  async function handleFile(kind, e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setStatus(`uploading-${kind}`);
+    setError("");
+    try {
+      await uploadProductFile({ productId: product.id, kind, file });
+      setStatus("done");
+    } catch (err) {
+      setStatus("error");
+      setError(err.message);
+    }
+  }
+
+  return (
+    <div style={styles.card}>
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <strong>{product.title}</strong>
+        <span>{formatPrice(product.price_cents)}</span>
+      </div>
+      {product.description && <p style={styles.dim}>{product.description}</p>}
+      <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
+        <label style={styles.dim}>
+          Full-res file{" "}
+          <input type="file" onChange={(e) => handleFile("full", e)} />
+        </label>
+        <label style={styles.dim}>
+          Preview image{" "}
+          <input type="file" accept="image/*" onChange={(e) => handleFile("preview_image", e)} />
+        </label>
+      </div>
+      {status.startsWith("uploading") && <p style={styles.dim}>Uploading…</p>}
+      {status === "done" && <p style={{ ...styles.dim, color: "var(--success)" }}>Saved.</p>}
+      {error && <p style={{ ...styles.dim, color: "#e08a8a" }}>{error}</p>}
+    </div>
+  );
+}
+
+export default function ProductManager() {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [price, setPrice] = useState("");
+  const [error, setError] = useState("");
+
+  async function loadProducts() {
+    const res = await fetch("/api/dashboard/products");
+    const data = await res.json();
+    setProducts(data.products || []);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    loadProducts();
+  }, []);
+
+  async function handleCreate(e) {
+    e.preventDefault();
+    setError("");
+    try {
+      const res = await fetch("/api/dashboard/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          description,
+          priceCents: Math.round(Number.parseFloat(price || "0") * 100),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Something went wrong.");
+      setTitle("");
+      setDescription("");
+      setPrice("");
+      loadProducts();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  return (
+    <div>
+      <h2>Products</h2>
+      <form onSubmit={handleCreate} style={{ maxWidth: 420 }}>
+        <input
+          style={styles.input}
+          placeholder="Title"
+          required
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+        <input
+          style={styles.input}
+          placeholder="Description (optional)"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+        <input
+          style={styles.input}
+          placeholder="Price in dollars (e.g. 25.00)"
+          required
+          inputMode="decimal"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+        />
+        <button style={styles.button} type="submit">
+          Add product
+        </button>
+        {error && <p style={{ color: "#e08a8a" }}>{error}</p>}
+      </form>
+
+      <div style={{ marginTop: "1.5rem" }}>
+        {loading ? (
+          <p style={styles.dim}>Loading…</p>
+        ) : products.length === 0 ? (
+          <p style={styles.dim}>No products yet — add your first one above.</p>
+        ) : (
+          products.map((p) => <ProductRow key={p.id} product={p} />)
+        )}
+      </div>
+    </div>
+  );
+}
