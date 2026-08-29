@@ -26,12 +26,59 @@ const styles = {
     cursor: "pointer",
   },
   dim: { color: "var(--ink-dim)", fontSize: "0.9rem", marginTop: "0.5rem" },
+  modeCard: (active) => ({
+    flex: 1,
+    textAlign: "left",
+    padding: "0.9rem 1rem",
+    borderRadius: 10,
+    border: active ? "2px solid var(--accent)" : "1px solid var(--card-line)",
+    background: "var(--bg)",
+    color: "var(--ink)",
+    cursor: "pointer",
+  }),
+  modeTitle: { fontWeight: 600, marginBottom: "0.25rem" },
 };
+
+// Shown once, right after shop name/URL -- this is the only other
+// decision before landing on the real dashboard to start adding
+// products. "Crypto/NFT" is a forward-looking opt-in: Crossmint
+// checkout (Phase 6) isn't built yet, so a crypto-mode shop sells
+// ordinary products the same way a fiat shop does today; the choice
+// just gets remembered so NFT checkout can turn on later without
+// another setup step.
+function SellingModePicker({ value, onChange }) {
+  return (
+    <div>
+      <p style={{ ...styles.dim, marginTop: "1.25rem", marginBottom: "0.4rem" }}>
+        How will you sell?
+      </p>
+      <div style={{ display: "flex", gap: "0.6rem" }}>
+        <button
+          type="button"
+          style={styles.modeCard(value === "fiat")}
+          onClick={() => onChange("fiat")}
+        >
+          <div style={styles.modeTitle}>Card &amp; Apple Pay</div>
+          <div style={styles.dim}>Standard checkout. Ready today.</div>
+        </button>
+        <button
+          type="button"
+          style={styles.modeCard(value === "crypto")}
+          onClick={() => onChange("crypto")}
+        >
+          <div style={styles.modeTitle}>Crypto / NFT</div>
+          <div style={styles.dim}>Via Crossmint. Coming soon -- your choice is saved.</div>
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function CreateShopForm() {
   const router = useRouter();
   const [slug, setSlug] = useState("");
   const [shopName, setShopName] = useState("");
+  const [sellingMode, setSellingMode] = useState("fiat");
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
 
@@ -43,7 +90,7 @@ export default function CreateShopForm() {
       const res = await fetch("/api/dashboard/tenant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug, shopName }),
+        body: JSON.stringify({ slug, shopName, sellingMode }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
@@ -73,6 +120,7 @@ export default function CreateShopForm() {
         value={slug}
         onChange={(e) => setSlug(e.target.value.toLowerCase())}
       />
+      <SellingModePicker value={sellingMode} onChange={setSellingMode} />
       <button style={styles.button} type="submit" disabled={status === "saving"}>
         {status === "saving" ? "Creating…" : "Create shop"}
       </button>

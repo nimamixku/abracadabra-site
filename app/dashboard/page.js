@@ -29,6 +29,21 @@ export default async function DashboardPage() {
 
         {tenant ? (
           <>
+            {tenant.selling_mode === "crypto" && (
+              <p
+                style={{
+                  color: "var(--ink-dim)",
+                  fontSize: "0.9rem",
+                  marginTop: "0.75rem",
+                  padding: "0.6rem 0.9rem",
+                  border: "1px solid var(--card-line)",
+                  borderRadius: 10,
+                }}
+              >
+                Marked as a crypto/NFT shop. Add products the same way as any shop for now —
+                NFT checkout unlocks here automatically once that ships.
+              </p>
+            )}
             <ConnectPayoutsButton status={tenant.stripe_connect_status} />
             <ProductManager />
           </>

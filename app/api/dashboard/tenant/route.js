@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/auth";
 import { query } from "@/lib/db";
 
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])?$/;
+const SELLING_MODES = new Set(["fiat", "crypto"]);
 
 // Creates the artist's shop. One per user for now (see lib/auth.js's
 // getSessionTenant comment) -- this route 400s if the session already
@@ -16,9 +17,13 @@ export async function POST(req) {
     return NextResponse.json({ error: "You already have a shop." }, { status: 400 });
   }
 
-  const { slug, shopName } = await req.json();
+  const { slug, shopName, sellingMode } = await req.json();
   const normalizedSlug = String(slug || "").trim().toLowerCase();
   const normalizedName = String(shopName || "").trim();
+  // Defaults to fiat if omitted or unrecognized, rather than 400ing --
+  // this field is a forward-looking preference, not something worth
+  // blocking shop creation over.
+  const normalizedSellingMode = SELLING_MODES.has(sellingMode) ? sellingMode : "fiat";
 
   if (!SLUG_RE.test(normalizedSlug)) {
     return NextResponse.json(
@@ -32,9 +37,9 @@ export async function POST(req) {
 
   try {
     const { rows } = await query(
-      `insert into tenants (owner_user_id, slug, shop_name)
-       values ($1, $2, $3) returning id, slug, shop_name`,
-      [user.id, normalizedSlug, normalizedName]
+      `insert into tenants (owner_user_id, slug, shop_name, selling_mode)
+       values ($1, $2, $3, $4) returning id, slug, shop_name, selling_mode`,
+      [user.id, normalizedSlug, normalizedName, normalizedSellingMode]
     );
     return NextResponse.json({ ok: true, tenant: rows[0] });
   } catch (err) {
