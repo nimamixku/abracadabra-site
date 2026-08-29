@@ -1,4 +1,30 @@
 #!/usr/bin/env node
+// Plain `node scripts/....mjs` doesn't auto-load .env.local the way
+// `next dev` does -- this reads it manually so this script (and anyone
+// else running it locally) doesn't need to prefix every invocation with
+// their own env-loading flags. Real environment variables (e.g. set by
+// Vercel in production) always take precedence over anything in the file.
+import { readFileSync as __readFileSync } from "node:fs";
+import __path from "node:path";
+(function loadEnvLocal() {
+  try {
+    const text = __readFileSync(__path.join(process.cwd(), ".env.local"), "utf8");
+    for (const line of text.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eq = trimmed.indexOf("=");
+      if (eq === -1) continue;
+      const key = trimmed.slice(0, eq).trim();
+      let value = trimmed.slice(eq + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      if (!(key in process.env)) process.env[key] = value;
+    }
+  } catch {
+    // No .env.local -- fine, real env vars take over (e.g. on Vercel).
+  }
+})();
 // Tiny migration runner -- no ORM, just tracks which migrations/*.sql
 // files have already run in a schema_migrations table and applies the
 // rest in filename order, each inside its own transaction.
