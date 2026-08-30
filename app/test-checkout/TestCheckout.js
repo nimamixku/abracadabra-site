@@ -85,6 +85,8 @@ function ProductRow({ tenantSlug, product }) {
   const [error, setError] = useState("");
   const [checkoutInfo, setCheckoutInfo] = useState(null); // { clientSecret, stripeAccount, amount }
   const [result, setResult] = useState(null);
+  const sizes = Array.isArray(product.details?.sizes) ? product.details.sizes : [];
+  const [size, setSize] = useState(sizes[0] || "");
 
   async function startCheckout() {
     setPhase("loading");
@@ -97,6 +99,7 @@ function ProductRow({ tenantSlug, product }) {
           tenantSlug,
           productId: product.id,
           payerEmail: "test-buyer@example.com",
+          ...(sizes.length > 0 ? { size } : {}),
         }),
       });
       const data = await res.json();
@@ -117,6 +120,16 @@ function ProductRow({ tenantSlug, product }) {
       </div>
       {!product.active && <p style={{ color: "#e08a8a", fontSize: "0.85rem" }}>Inactive product</p>}
       {error && <p style={{ color: "#e08a8a" }}>{error}</p>}
+
+      {sizes.length > 0 && (phase === "idle" || phase === "error") && (
+        <select value={size} onChange={(e) => setSize(e.target.value)} style={{ marginTop: "0.5rem" }}>
+          {sizes.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      )}
 
       {phase === "idle" || phase === "error" ? (
         <button type="button" onClick={startCheckout} style={{ ...buttonStyle, marginTop: "0.5rem" }}>

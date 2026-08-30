@@ -19,7 +19,7 @@ export default async function TestCheckoutPage() {
   if (!tenant) redirect("/dashboard");
 
   const { rows: products } = await query(
-    "select id, title, price_cents, active from products where tenant_id = $1 order by id desc",
+    "select id, type, title, price_cents, details, active from products where tenant_id = $1 order by id desc",
     [tenant.id]
   );
 

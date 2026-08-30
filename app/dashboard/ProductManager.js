@@ -23,6 +23,16 @@ const styles = {
     cursor: "pointer",
     marginTop: "0.75rem",
   },
+  typeButton: (active) => ({
+    padding: "0.5rem 0.9rem",
+    borderRadius: 10,
+    border: active ? "1px solid var(--accent)" : "1px solid var(--card-line)",
+    background: active ? "var(--accent)" : "var(--bg)",
+    color: active ? "#1a0f24" : "var(--ink)",
+    fontWeight: 600,
+    cursor: "pointer",
+    fontSize: "0.85rem",
+  }),
   card: {
     background: "var(--card)",
     border: "1px solid var(--card-line)",
@@ -33,14 +43,21 @@ const styles = {
   dim: { color: "var(--ink-dim)", fontSize: "0.85rem" },
 };
 
+const TYPE_LABELS = {
+  digital_image: "Digital image",
+  digital_audio: "Digital audio",
+  physical: "Physical item",
+};
+
 function formatPrice(cents) {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-// Uploads a full-res file or preview image for one product: gets a
-// presigned URL, PUTs the file straight to R2, then tells the platform
-// which R2 key belongs to this product. Mirrors the two-step flow
-// /api/dashboard/uploads and /api/dashboard/products/[id]/files exist for.
+// Uploads a file for one product (full-res / preview image / preview
+// clip, whatever `kind` fits the product's type): gets a presigned URL,
+// PUTs the file straight to R2, then tells the platform which R2 key
+// belongs to this product. Same flow for every type -- only which
+// `kind`s a given type shows in the UI below changes.
 async function uploadProductFile({ productId, kind, file }) {
   const presignRes = await fetch("/api/dashboard/uploads", {
     method: "POST",
@@ -66,6 +83,27 @@ async function uploadProductFile({ productId, kind, file }) {
   if (!recordRes.ok) throw new Error(recordData.error || "Could not save file record.");
 }
 
+// Which upload fields a product needs, purely a function of its type --
+// a digital sale needs a gated full-res file, a physical item never does
+// (nothing to download; the buyer gets a shipped object instead).
+function fileFieldsFor(type) {
+  if (type === "digital_audio") {
+    return [
+      { kind: "full", label: "Full audio file (what the customer downloads)" },
+      { kind: "preview_clip", label: "Preview clip (what customers hear before buying)" },
+      { kind: "preview_image", label: "Cover image (what customers see in the feed)" },
+    ];
+  }
+  if (type === "physical") {
+    return [{ kind: "preview_image", label: "Photo (what customers see in the feed)" }];
+  }
+  // digital_image, and the fallback for anything unrecognized
+  return [
+    { kind: "full", label: "Full-res file (what the customer downloads)" },
+    { kind: "preview_image", label: "Preview image (what the customer sees online)" },
+  ];
+}
+
 function ProductRow({ product }) {
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
@@ -84,22 +122,30 @@ function ProductRow({ product }) {
     }
   }
 
+  const fields = fileFieldsFor(product.type);
+  const sizes = product.details?.sizes;
+  const shippingCents = product.details?.shipping_cents;
+
   return (
     <div style={styles.card}>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <strong>{product.title}</strong>
         <span>{formatPrice(product.price_cents)}</span>
       </div>
+      <p style={styles.dim}>{TYPE_LABELS[product.type] || product.type}</p>
       {product.description && <p style={styles.dim}>{product.description}</p>}
+      {product.type === "physical" && (
+        <p style={styles.dim}>
+          {Array.isArray(sizes) && sizes.length > 0 ? `Sizes: ${sizes.join(", ")} — ` : ""}
+          Shipping: {formatPrice(shippingCents || 0)}
+        </p>
+      )}
       <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
-        <label style={styles.dim}>
-          Full-res file (what the customer downloads){" "}
-          <input type="file" onChange={(e) => handleFile("full", e)} />
-        </label>
-        <label style={styles.dim}>
-          Preview image (what the customer sees online){" "}
-          <input type="file" onChange={(e) => handleFile("preview_image", e)} />
-        </label>
+        {fields.map((f) => (
+          <label key={f.kind} style={styles.dim}>
+            {f.label} <input type="file" onChange={(e) => handleFile(f.kind, e)} />
+          </label>
+        ))}
       </div>
       {status.startsWith("uploading") && <p style={styles.dim}>Uploading…</p>}
       {status === "done" && <p style={{ ...styles.dim, color: "var(--success)" }}>Saved.</p>}
@@ -111,9 +157,12 @@ function ProductRow({ product }) {
 export default function ProductManager() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [type, setType] = useState("digital_image");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
+  const [sizes, setSizes] = useState("");
+  const [shipping, setShipping] = useState("");
   const [error, setError] = useState("");
 
   async function loadProducts() {
@@ -135,9 +184,16 @@ export default function ProductManager() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          type,
           title,
           description,
           priceCents: Math.round(Number.parseFloat(price || "0") * 100),
+          ...(type === "physical"
+            ? {
+                sizes,
+                shippingCents: Math.round(Number.parseFloat(shipping || "0") * 100),
+              }
+            : {}),
         }),
       });
       const data = await res.json();
@@ -145,6 +201,8 @@ export default function ProductManager() {
       setTitle("");
       setDescription("");
       setPrice("");
+      setSizes("");
+      setShipping("");
       loadProducts();
     } catch (err) {
       setError(err.message);
@@ -155,6 +213,18 @@ export default function ProductManager() {
     <div>
       <h2>Products</h2>
       <form onSubmit={handleCreate} style={{ maxWidth: 420 }}>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          {Object.entries(TYPE_LABELS).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setType(value)}
+              style={styles.typeButton(type === value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <input
           style={styles.input}
           placeholder="Title"
@@ -176,6 +246,23 @@ export default function ProductManager() {
           value={price}
           onChange={(e) => setPrice(e.target.value)}
         />
+        {type === "physical" && (
+          <>
+            <input
+              style={styles.input}
+              placeholder="Sizes, comma separated (optional, e.g. S, M, L)"
+              value={sizes}
+              onChange={(e) => setSizes(e.target.value)}
+            />
+            <input
+              style={styles.input}
+              placeholder="Shipping cost in dollars (e.g. 6.00)"
+              inputMode="decimal"
+              value={shipping}
+              onChange={(e) => setShipping(e.target.value)}
+            />
+          </>
+        )}
         <button style={styles.button} type="submit">
           Add product
         </button>

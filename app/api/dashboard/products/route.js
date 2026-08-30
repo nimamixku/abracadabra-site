@@ -2,15 +2,18 @@ import { NextResponse } from "next/server";
 import { getSessionTenant } from "@/lib/auth";
 import { query } from "@/lib/db";
 
-// v1 dashboard only creates digital_image products directly (the type
-// the founder's own ~90-product catalog already is) -- audio/physical
-// generalization lands in Phase 3 alongside Stripe Connect, per the plan.
+// Phase 3: generalized beyond the v1 digital_image-only version -- now
+// accepts any of the three launched types. New types still don't need a
+// schema migration (see migrations/001_init.sql's comment on `details`),
+// just a new branch here for whatever that type's own fields are.
+const PRODUCT_TYPES = new Set(["digital_image", "digital_audio", "physical"]);
+
 export async function GET(req) {
   const { tenant } = await getSessionTenant(req.cookies);
   if (!tenant) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
   const { rows } = await query(
-    "select id, type, title, description, price_cents, active, created_at from products where tenant_id = $1 order by sort_order asc, id desc",
+    "select id, type, title, description, price_cents, details, active, created_at from products where tenant_id = $1 order by sort_order asc, id desc",
     [tenant.id]
   );
   return NextResponse.json({ products: rows });
@@ -20,9 +23,10 @@ export async function POST(req) {
   const { tenant } = await getSessionTenant(req.cookies);
   if (!tenant) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
-  const { title, description, priceCents } = await req.json();
+  const { title, description, priceCents, type, sizes, shippingCents } = await req.json();
   const normalizedTitle = String(title || "").trim();
   const priceInt = Number.parseInt(priceCents, 10);
+  const normalizedType = PRODUCT_TYPES.has(type) ? type : "digital_image";
 
   if (!normalizedTitle) {
     return NextResponse.json({ error: "Title is required." }, { status: 400 });
@@ -31,11 +35,30 @@ export async function POST(req) {
     return NextResponse.json({ error: "Price must be a positive number of cents." }, { status: 400 });
   }
 
+  // Only `physical` has extra fields today -- sizes (optional; an item
+  // with no size options just skips the size picker at checkout) and a
+  // flat shipping fee added on top of the item price. Kept in `details`
+  // rather than new columns, same reasoning as the schema comment.
+  let details = {};
+  if (normalizedType === "physical") {
+    const sizeList = Array.isArray(sizes)
+      ? sizes.map((s) => String(s).trim()).filter(Boolean)
+      : String(sizes || "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+    const shippingInt = Number.parseInt(shippingCents, 10);
+    details = {
+      ...(sizeList.length > 0 ? { sizes: sizeList } : {}),
+      shipping_cents: Number.isFinite(shippingInt) && shippingInt >= 0 ? shippingInt : 0,
+    };
+  }
+
   const { rows } = await query(
-    `insert into products (tenant_id, type, title, description, price_cents)
-     values ($1, 'digital_image', $2, $3, $4)
-     returning id, type, title, description, price_cents, active, created_at`,
-    [tenant.id, normalizedTitle, String(description || "").trim(), priceInt]
+    `insert into products (tenant_id, type, title, description, price_cents, details)
+     values ($1, $2, $3, $4, $5, $6)
+     returning id, type, title, description, price_cents, details, active, created_at`,
+    [tenant.id, normalizedType, normalizedTitle, String(description || "").trim(), priceInt, JSON.stringify(details)]
   );
   return NextResponse.json({ ok: true, product: rows[0] });
 }
