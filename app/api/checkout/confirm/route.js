@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { query } from "@/lib/db";
+import { markOrderSucceeded } from "@/lib/orders";
 
 // Tenant + Connect-aware replacement for the single-tenant
 // app/api/confirm/route.js. Looks the order up by payment intent id
@@ -35,9 +36,9 @@ export async function POST(req) {
       return NextResponse.json({ error: "Payment not completed." }, { status: 402 });
     }
 
-    if (order.status !== "succeeded") {
-      await query("update orders set status = 'succeeded', updated_at = now() where id = $1", [order.id]);
-    }
+    // Shared with the payment_intent.succeeded Connect webhook -- see
+    // lib/orders.js for why this is idempotent and safe from either path.
+    await markOrderSucceeded(paymentIntentId);
 
     const origin = new URL(req.url).origin;
 
