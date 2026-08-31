@@ -130,7 +130,6 @@ export default function MarketingHome() {
       </section>
 
       <section className="marketing-section marketing-cta-section">
-        <h2>Say the word</h2>
         <p className="marketing-sub">
           You just tried it. Creating the real thing takes about as long —
           drop in your actual catalog and it's live in minutes.
