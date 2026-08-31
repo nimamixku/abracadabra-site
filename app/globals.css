@@ -232,6 +232,21 @@ a {
   gap: 10px;
 }
 
+/* Base (in-card) look for the post-purchase shipping prompt -- same
+   layout as .card-pay-form. The floating-widget override above replaces
+   this with its own "second box below the tap & pay box" treatment. */
+.ship-prompt-box {
+  margin-top: 12px;
+}
+
+.ship-prompt-form {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+
 /* quiet and easy to skip -- small, low-contrast, no border emphasis, so
    it reads as an offered extra rather than a required step */
 .card-email-input {
@@ -616,6 +631,38 @@ a {
   border-radius: 12px;
 }
 
+/* The post-purchase "where should we ship it" prompt -- shown after a
+   physical order pays with no address on file yet. Deliberately its own
+   class (not .card-pay-form), so the blanket hide rule above doesn't
+   swallow it: unlike "pay with card" and the pre-purchase "ship it"
+   button (both redundant with the copy already under the photo), THIS
+   one is the only way a wallet/"tap & pay" buyer gets asked for an
+   address at all, so it has to actually show up here. */
+.floating-buy-wrap .ship-prompt-box {
+  display: block;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 10px;
+  padding: 14px 16px 16px;
+  border-radius: 18px;
+  background: rgba(20, 18, 22, 0.92);
+  border: 1px solid rgba(236, 72, 153, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+}
+
+.floating-buy-wrap .ship-prompt-box .card-desc {
+  font-size: 11.5px;
+  margin: 0 0 8px;
+}
+
+.floating-buy-wrap .ship-prompt-form {
+  margin-top: 0;
+}
+
+
 @keyframes shuffleFloat {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-7px); }
@@ -863,4 +910,152 @@ a {
   margin: 0;
   width: 100%;
   text-align: center;
+}
+
+/* ---- multi-tenant storefront (app/_sites/[tenant]) ---- */
+/* Unlike .card-media above (the original single-tenant feed), this never
+   force-crops a photo -- see the plan's "No forced cropping, ever" design
+   principle. Each image keeps its own natural shape; the aspect-ratio is
+   set inline per-card from product_files.width_px/height_px when known
+   (prevents layout shift), falling back to natural flow when it isn't.
+   The only guardrail is a soft max-height so an extreme outlier can't
+   dominate the screen -- object-fit: contain (not cover) so that cap
+   never crops anything, it just shrinks to fit. */
+.tenant-card-media {
+  width: 100%;
+  background: #000;
+  overflow: hidden;
+  position: relative;
+}
+
+.tenant-card-media img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 78vh;
+  object-fit: contain;
+  cursor: default;
+}
+
+.tenant-card-media-empty {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  background: linear-gradient(145deg, #1a1a1d, #0b0b0d);
+}
+
+.card-desc {
+  color: var(--ink-dim);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 8px 0 0;
+}
+
+/* Tenant storefront's own lightbox image sizing -- deliberately separate
+   from .lightbox-img (the original single-tenant site's class, still
+   live in production) so this change can't affect that page. The 62vh
+   cap there was sized for a smaller screen and left the full image
+   looking noticeably shrunken on a desktop-size viewport; this keeps
+   that same cap on small screens (where it already looked right) and
+   raises it only once there's real room to use. */
+.tenant-lightbox-img {
+  max-width: 100%;
+  max-height: 62vh;
+  object-fit: contain;
+  border-radius: 8px;
+  cursor: zoom-out;
+}
+
+@media (min-width: 700px) {
+  .tenant-lightbox-img {
+    max-height: 88vh;
+  }
+}
+
+/* Floating "ship it here" form -- the double-click/double-tap path's
+   equivalent of the inline ship-address form under a physical item's
+   buy buttons (see StorefrontFeed.js's BuySection). Shown as a centered
+   overlay rather than inline since double-clicking doesn't imply the
+   shopper is already looking at the card's own body/buttons the way
+   clicking "ship it here" there does. */
+.ship-form-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.ship-form-panel {
+  width: 100%;
+  max-width: 380px;
+  background: var(--card);
+  border: 1px solid var(--card-line);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.ship-form-title {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* ---- cursor: always the plain default arrow, no hand pointers, on
+   every page this layout wraps (the live single-tenant homepage and
+   every tenant storefront alike). Deliberately overrides every
+   `cursor: pointer` / `cursor: zoom-in` / `cursor: zoom-out` declared
+   above with !important -- this is an intentional blanket site-wide
+   policy, not a bug fix for one element, so it has to win the cascade
+   no matter what order things were declared in. ---- */
+*,
+*::before,
+*::after {
+  cursor: default !important;
+}
+
+/* Text fields keep the normal typing beam -- that's not a "hand", it's
+   the ordinary affordance for "you can type here" and stays useful. */
+input:not([type="submit"]):not([type="button"]),
+textarea {
+  cursor: text !important;
+}
+
+/* The click-glow effect (see app/ClickGlow.js) stands in for the
+   affordance a hand cursor would normally give -- a soft glow blooms
+   right where the click landed and fades out, so a click still feels
+   like it registered even with a plain arrow. Fixed + pointer-events:
+   none so it never blocks or steals the click underneath it. */
+.click-glow {
+  position: fixed;
+  z-index: 9999;
+  top: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    var(--accent) 0%,
+    rgba(201, 139, 255, 0.35) 55%,
+    transparent 75%
+  );
+  pointer-events: none;
+  animation: clickGlowPop 0.5s ease-out forwards;
+}
+
+@keyframes clickGlowPop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(3.4);
+    opacity: 0;
+  }
 }

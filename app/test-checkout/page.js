@@ -5,7 +5,7 @@ import { query } from "@/lib/db";
 import TestCheckout from "./TestCheckout";
 
 // TEMPORARY, dev-only tool -- not linked from anywhere in the real app.
-// The real buyer-facing storefront (app/_sites/[tenant]) is Phase 4 work;
+// The real buyer-facing storefront (app/sites/[tenant]) is Phase 4 work;
 // this exists purely so Phase 3's Connect/checkout plumbing can be
 // proven end-to-end (a real test-mode card charge, split, and download)
 // before that storefront exists. Delete this whole folder once Phase 4
@@ -34,6 +34,10 @@ export default async function TestCheckoutPage() {
     >
       <div style={{ maxWidth: 560, margin: "0 auto" }}>
         <h1 style={{ marginBottom: "0.25rem" }}>Test checkout</h1>
+        <p style={{ color: "var(--ink-dim)", fontSize: "0.85rem", marginTop: 0 }}>
+          Storefront slug: <code>{tenant.slug}</code> -- visit{" "}
+          <code>http://{tenant.slug}.localhost:3000</code> to see the real feed.
+        </p>
         <p style={{ color: "var(--ink-dim)", fontSize: "0.9rem", marginTop: 0 }}>
           Dev-only tool for {tenant.shop_name}. Use Stripe test card{" "}
           <code>4242 4242 4242 4242</code>, any future expiry, any 3-digit CVC, any ZIP.

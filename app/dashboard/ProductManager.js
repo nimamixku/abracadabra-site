@@ -125,6 +125,7 @@ function ProductRow({ product }) {
   const fields = fileFieldsFor(product.type);
   const sizes = product.details?.sizes;
   const shippingCents = product.details?.shipping_cents;
+  const crop = product.details?.crop;
 
   return (
     <div style={styles.card}>
@@ -140,6 +141,9 @@ function ProductRow({ product }) {
           Shipping: {formatPrice(shippingCents || 0)}
         </p>
       )}
+      <p style={styles.dim}>
+        Photo: {crop === "square" ? "cropped to square" : crop === "portrait" ? "cropped to portrait" : "natural (no crop)"}
+      </p>
       <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
         {fields.map((f) => (
           <label key={f.kind} style={styles.dim}>
@@ -163,6 +167,7 @@ export default function ProductManager() {
   const [price, setPrice] = useState("");
   const [sizes, setSizes] = useState("");
   const [shipping, setShipping] = useState("");
+  const [crop, setCrop] = useState("natural");
   const [error, setError] = useState("");
 
   async function loadProducts() {
@@ -194,6 +199,7 @@ export default function ProductManager() {
                 shippingCents: Math.round(Number.parseFloat(shipping || "0") * 100),
               }
             : {}),
+          ...(crop !== "natural" ? { crop } : {}),
         }),
       });
       const data = await res.json();
@@ -203,6 +209,7 @@ export default function ProductManager() {
       setPrice("");
       setSizes("");
       setShipping("");
+      setCrop("natural");
       loadProducts();
     } catch (err) {
       setError(err.message);
@@ -263,6 +270,25 @@ export default function ProductManager() {
             />
           </>
         )}
+        <p style={{ ...styles.dim, marginTop: "0.75rem", marginBottom: "0.25rem" }}>
+          Photo crop -- the feed never crops by default, but you can opt this piece into one:
+        </p>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          {[
+            ["natural", "Natural (no crop)"],
+            ["square", "Square"],
+            ["portrait", "Portrait"],
+          ].map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setCrop(value)}
+              style={styles.typeButton(crop === value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <button style={styles.button} type="submit">
           Add product
         </button>

@@ -1,4 +1,5 @@
 import "./globals.css";
+import ClickGlow from "./ClickGlow";
 
 export const metadata = {
   title: "ABRACADABRA",
@@ -8,7 +9,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <ClickGlow />
+      </body>
     </html>
   );
 }

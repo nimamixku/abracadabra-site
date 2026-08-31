@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { query } from "@/lib/db";
+import { isUsableShippingAddress } from "@/lib/orders";
 
 // A very loose sanity check, same as the original single-tenant route --
 // not real validation, just enough to avoid handing Stripe something
@@ -24,7 +25,7 @@ function looksLikeEmail(value) {
 // any real UI depends on it.
 export async function POST(req) {
   try {
-    const { tenantSlug, productId, payerEmail, size } = await req.json();
+    const { tenantSlug, productId, payerEmail, size, shippingAddress } = await req.json();
     if (!tenantSlug || !productId) {
       return NextResponse.json({ error: "Missing tenant or product." }, { status: 400 });
     }
@@ -51,6 +52,12 @@ export async function POST(req) {
     if (product.type === "physical" && Array.isArray(sizes) && sizes.length > 0 && !size) {
       return NextResponse.json({ error: "Size is required." }, { status: 400 });
     }
+    // A shipping address is welcome here if the shopper already filled it
+    // in, but NOT required -- per the plan's shopping-order flexibility,
+    // a physical purchase can go through first and pick up its address
+    // afterward via /api/checkout/shipping-address instead. Either order
+    // ends up with the same thing: an order row with a usable address
+    // before it ships, never a charge silently missing one forever.
     const shippingCents = product.type === "physical" ? Number(product.details?.shipping_cents || 0) : 0;
 
     const amount = product.price_cents + shippingCents;
@@ -64,6 +71,13 @@ export async function POST(req) {
     // platform's cut. See the plan's Payments section for why this is
     // structurally separate from the platform's own Stripe Billing
     // subscription relationship.
+    // Only stored if it's actually well-formed -- an optional, possibly
+    // half-filled address from the client is worth ignoring rather than
+    // saving garbage; the shopper (or the post-purchase prompt) can
+    // always supply a real one via /api/checkout/shipping-address.
+    const usableShipping =
+      product.type === "physical" && isUsableShippingAddress(shippingAddress) ? shippingAddress : null;
+
     const paymentIntent = await stripe.paymentIntents.create(
       {
         amount,
@@ -76,6 +90,24 @@ export async function POST(req) {
           productId: String(product.id),
           size: size || "",
         },
+        // Also attached directly on the PaymentIntent (visible in Stripe's
+        // own dashboard) as a convenient second copy -- `orders` below is
+        // still the source of truth the app itself reads from.
+        ...(usableShipping
+          ? {
+              shipping: {
+                name: usableShipping.name,
+                address: {
+                  line1: usableShipping.line1,
+                  line2: usableShipping.line2 || undefined,
+                  city: usableShipping.city,
+                  state: usableShipping.state,
+                  postal_code: usableShipping.postalCode,
+                  country: usableShipping.country || "US",
+                },
+              },
+            }
+          : {}),
       },
       { stripeAccount: tenant.stripe_connect_account_id }
     );
@@ -83,8 +115,8 @@ export async function POST(req) {
     await query(
       `insert into orders
         (tenant_id, product_id, stripe_payment_intent_id, stripe_connect_account_id,
-         application_fee_cents, amount_cents, currency, customer_email, status)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, 'pending')`,
+         application_fee_cents, amount_cents, currency, customer_email, status, shipping_address)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, 'pending', $9)`,
       [
         tenant.id,
         product.id,
@@ -94,6 +126,7 @@ export async function POST(req) {
         amount,
         product.currency,
         receiptEmail || null,
+        usableShipping ? JSON.stringify(usableShipping) : null,
       ]
     );
 
