@@ -1094,6 +1094,39 @@ textarea {
   margin: 0 0 1.25rem;
 }
 
+/* Now that each statement is short enough to fit its own line, the
+   headline can go back to the original big size instead of the
+   shrunk-down size that the longer three-sentence version needed. */
+.marketing-hero-split h1 {
+  font-size: clamp(1.8rem, 4.4vw, 2.8rem);
+  line-height: 1.25;
+}
+
+/* Each of the three statements is its own block so a small gap can sit
+   between them -- without this they'd run straight into each other with
+   no way to tell where one ends and the next begins. */
+.hero-line {
+  display: block;
+  margin-bottom: 0.3em;
+}
+
+.hero-line:last-child {
+  margin-bottom: 0;
+}
+
+/* On a phone-width screen the clamp above still wraps each line into
+   two or three, turning the headline into a wall of text -- drop it
+   further so each phrase mostly fits its own line. */
+@media (max-width: 640px) {
+  .marketing-hero-split h1 {
+    font-size: 1.5rem;
+    line-height: 1.3;
+  }
+  .hero-line {
+    margin-bottom: 0.35em;
+  }
+}
+
 .marketing-sub {
   color: var(--ink-dim);
   font-size: 1.05rem;
@@ -1177,4 +1210,611 @@ textarea {
   padding: 2rem 1.5rem 3rem;
   color: var(--ink-dim);
   font-size: 0.85rem;
+}
+
+/* ---------------------------------------------------------------------
+   Marketing landing page v2 -- ambient marquee tweak + the "try it with
+   your own work" phone-frame demo. "tryit-" namespaced so nothing here
+   collides with the real tenant storefront's own card/lightbox classes.
+--------------------------------------------------------------------- */
+.marketing-marquee-board {
+  max-width: 640px;
+  margin: 0 auto 0;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+}
+
+.marketing-hero-split {
+  display: grid;
+  grid-template-columns: minmax(520px, 640px) 1fr;
+  gap: 2.5rem;
+  align-items: center;
+  text-align: left;
+  padding-top: 3.5rem;
+  max-width: 1120px;
+}
+
+.marketing-hero-split .marketing-hero-copy {
+  text-align: left;
+}
+
+/* Full-width header for the whole try-it section, spanning both grid
+   columns -- explicitly frames what the demo below is (a trial), so the
+   tagline next to it can't be misread as "nothing here needs paying
+   for" once someone actually opens a shop. */
+/* Header for the try-it panel itself -- sits above the tagline, inside
+   the same boxed frame, so "no account, no sign-up" reads as describing
+   the trial below it rather than the platform overall. */
+.tryit-section-heading {
+  margin: 0;
+  text-align: left;
+  font-size: clamp(1.5rem, 2.6vw, 2rem);
+}
+
+/* Its own boxed panel so it reads as a separate, contained object next
+   to the copy column instead of floating loose in the same space --
+   sized to actually use the panel's full width rather than leaving the
+   phone stranded in a mostly-empty box. */
+.marketing-hero-demo {
+  background: var(--card);
+  border: 1px solid var(--card-line);
+  border-radius: 32px;
+  padding: 2.5rem;
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  width: 100%;
+}
+
+.tryit-copy-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.tryit-tagline {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: clamp(1.1rem, 1.9vw, 1.3rem);
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+}
+
+/* Same small size as the floating hint that sits over the phone itself
+   (.tryit-floating-hint) -- repeating the instruction here in plain,
+   static copy so it isn't missed if that floating version has already
+   faded once a photo's been dropped in. */
+.tryit-copy-hint {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: 0.75rem;
+  text-align: left;
+}
+
+/* Pulls this line up against the hint above it -- the two read as one
+   paired set of instructions, not two evenly-spaced statements like the
+   heading/tagline above them. */
+.tryit-copy-hint-tight {
+  margin-top: -0.6rem;
+}
+
+@media (max-width: 980px) {
+  .tryit-copy-hint {
+    text-align: center;
+  }
+}
+
+.marketing-hero-split .marketing-sub {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.marketing-hero-split .marketing-cta-row {
+  justify-content: flex-start;
+}
+
+@media (max-width: 980px) {
+  .marketing-hero-split {
+    grid-template-columns: 1fr;
+    text-align: center;
+    max-width: 640px;
+  }
+  .marketing-hero-split .marketing-hero-copy {
+    text-align: center;
+  }
+  .marketing-hero-split .marketing-sub {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .marketing-hero-split .marketing-cta-row {
+    justify-content: center;
+  }
+  .marketing-hero-demo {
+    flex-direction: column;
+    padding: 2.5rem 1.5rem 1.75rem;
+  }
+  .tryit-copy-col {
+    align-items: center;
+    text-align: center;
+  }
+  .tryit-section-heading,
+  .tryit-tagline {
+    text-align: center;
+  }
+}
+
+.tryit-wrap {
+  display: flex;
+  justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.tryit-phone {
+  width: 300px;
+  height: 610px;
+  background: #050505;
+  border: 1px solid var(--card-line);
+  border-radius: 42px;
+  padding: 14px 10px;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45);
+  position: relative;
+  transition: border-color 0.15s ease;
+}
+
+.tryit-phone-drag {
+  border-color: var(--accent);
+}
+
+.tryit-notch {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90px;
+  height: 18px;
+  background: #050505;
+  border-radius: 0 0 12px 12px;
+  z-index: 2;
+}
+
+.tryit-screen {
+  height: 100%;
+  background: var(--bg);
+  border-radius: 30px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  padding-top: 28px;
+}
+
+.tryit-empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.tryit-hint {
+  color: var(--ink-dim);
+  font-size: 0.85rem;
+  margin: 0;
+  max-width: 180px;
+}
+
+.tryit-pick {
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--card-line);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.tryit-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 10px 70px;
+}
+
+.tryit-card {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--card-line);
+  background: var(--card);
+  cursor: pointer;
+}
+
+.tryit-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 320px;
+  object-fit: contain;
+  background: #000;
+}
+
+.tryit-card-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 8px 10px;
+}
+
+.tryit-card-title {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--ink);
+}
+
+.tryit-card-price {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.tryit-more {
+  border: 1px dashed var(--card-line);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--ink-dim);
+  font-size: 0.75rem;
+  padding: 10px;
+  cursor: pointer;
+}
+
+.tryit-floating {
+  position: absolute;
+  bottom: 46px;
+  right: 16px;
+  z-index: 3;
+}
+
+.tryit-floating-chip {
+  display: inline-block;
+  background: rgba(20, 16, 24, 0.9);
+  border: 1px solid var(--accent-dim, var(--card-line));
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 6px 10px;
+  border-radius: 999px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+}
+
+.tryit-clear {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 1px solid var(--card-line);
+  background: var(--card);
+  color: var(--ink-dim);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 5px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  z-index: 3;
+}
+
+/* Bigger, always-visible version for the interactive demo -- it's part
+   of the phone's permanent chrome now, not something that only appears
+   once a photo's been dropped in, so it needs to read clearly even when
+   the feed is still all empty placeholders. */
+.tryit-clear-big {
+  bottom: 14px;
+  width: calc(100% - 36px);
+  padding: 12px 14px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.4);
+  z-index: 7;
+}
+
+.tryit-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 2rem;
+  cursor: zoom-out;
+}
+
+.tryit-lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 10px;
+}
+
+.tryit-buy-hint {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  padding: 1.5rem;
+}
+
+.tryit-buy-hint-card {
+  background: var(--card);
+  border: 1px solid var(--card-line);
+  border-radius: 16px;
+  padding: 1.5rem 1.75rem;
+  text-align: center;
+  max-width: 280px;
+}
+
+.tryit-buy-hint-card p {
+  margin: 0 0 0.75rem;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.tryit-buy-hint-card a {
+  display: inline-block;
+  padding: 0.6rem 1.2rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #1a0f24;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+/* ---------------------------------------------------------------------
+   Try-it demo v2: placeholder card slots instead of one big empty drop
+   zone, so the phone reads as a real shop from the first glance. Auto-
+   scrolls gently until the visitor interacts.
+--------------------------------------------------------------------- */
+.tryit-floating-hint {
+  position: absolute;
+  top: -34px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--ink-dim);
+  font-size: 0.75rem;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.tryit-feed-track {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 10px 70px;
+}
+
+.tryit-screen-idle .tryit-feed-track {
+  animation: tryitAutoScroll 16s linear infinite;
+}
+
+@keyframes tryitAutoScroll {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+.tryit-screen-idle {
+  overflow: hidden;
+}
+
+.tryit-card-empty {
+  aspect-ratio: 4 / 5;
+  background: linear-gradient(145deg, #1a1a1d, #0b0b0d);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tryit-card-plus {
+  color: var(--ink-dim);
+  font-size: 1.6rem;
+  font-weight: 300;
+}
+
+.tryit-card-dragover {
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+}
+
+/* ---------------------------------------------------------------------
+   Ambient loop: the small, passive iPhone underneath the interactive
+   demo, auto-cycling through the founder's own real preview photos.
+--------------------------------------------------------------------- */
+.ambient-loop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 1.5rem 1.5rem 2.5rem;
+}
+
+.ambient-phone {
+  width: 120px;
+  height: 240px;
+  background: #050505;
+  border: 1px solid var(--card-line);
+  border-radius: 22px;
+  padding: 8px 6px;
+  position: relative;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.35);
+  animation: ambientFloat 5s ease-in-out infinite;
+}
+
+@keyframes ambientFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.ambient-notch {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 7px;
+  background: #050505;
+  border-radius: 0 0 6px 6px;
+  z-index: 2;
+}
+
+.ambient-screen {
+  height: 100%;
+  background: var(--bg);
+  border-radius: 15px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 5px 5px;
+  transition: opacity 0.4s ease;
+}
+
+.ambient-screen-clearing {
+  opacity: 0;
+}
+
+.ambient-card {
+  flex: 1;
+  border-radius: 6px;
+  background: linear-gradient(145deg, #1a1a1d, #0b0b0d);
+  overflow: hidden;
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.35s ease, transform 0.35s ease, order 0.4s ease;
+}
+
+.ambient-card-filled {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.ambient-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ambient-caption {
+  color: var(--ink-dim);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------------
+   Try-it demo v3: a genuine visual reuse of the real storefront's own
+   card/floating-widget/lightbox classes (see StorefrontFeed.js), scoped
+   overrides only where the real classes assume a full-page viewport
+   (.floating-shuffle/.floating-buy-wrap are position: fixed there) and
+   need to stay contained inside the small phone frame here instead.
+--------------------------------------------------------------------- */
+.tryit-phone .floating-shuffle {
+  position: absolute;
+  top: auto;
+  bottom: 66px;
+  left: 12px;
+  padding: 8px 14px;
+  font-size: 11px;
+  z-index: 5;
+}
+
+.tryit-phone .floating-buy-wrap {
+  position: absolute;
+  top: auto;
+  bottom: 66px;
+  right: 12px;
+  left: auto;
+  width: auto;
+  max-width: 148px;
+  padding: 8px 10px 9px;
+  z-index: 5;
+  cursor: pointer;
+}
+
+.tryit-phone .floating-buy-title-text {
+  font-size: 10px;
+}
+
+/* Ambient variant: the exact same DOM/CSS as the interactive phone,
+   rendered at real size then scaled down as a whole -- guarantees pixel
+   parity with the real thing instead of a hand-tuned miniature that
+   could drift. The wrapper's own box is sized to match the scaled
+   result so nothing else on the page needs to know it's shrunk. */
+/* Positions the ambient loop to the left with its tagline filling the
+   space beside it, instead of sitting dead-center with nothing next to
+   it. */
+.ambient-section {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 1.5rem 1.5rem 2.5rem;
+}
+
+.tryit-wrap-ambient {
+  display: block;
+  width: 180px;
+  height: 366px;
+  overflow: hidden;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.ambient-tagline {
+  flex: 1;
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: clamp(1rem, 1.8vw, 1.2rem);
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: left;
+}
+
+@media (max-width: 640px) {
+  .ambient-section {
+    flex-direction: column;
+    text-align: center;
+  }
+  .tryit-wrap-ambient {
+    margin: 0 auto;
+  }
+  .ambient-tagline {
+    text-align: center;
+  }
+}
+
+.tryit-phone-ambient {
+  transform: scale(0.6);
+  transform-origin: top left;
+  pointer-events: none;
 }
