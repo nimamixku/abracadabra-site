@@ -56,6 +56,9 @@ export default function MarketingHome() {
 
       <section className="ambient-section">
         <div className="ambient-left">
+          <p className="ambient-tagline">A feed that never buries your work</p>
+        </div>
+        <div className="ambient-right">
           <AmbientLoop />
           <div className="ambient-cards">
             <div className="marketing-card marketing-card-compact">
@@ -73,9 +76,6 @@ export default function MarketingHome() {
               </p>
             </div>
           </div>
-        </div>
-        <div className="ambient-right">
-          <p className="ambient-tagline">A feed that never buries your work</p>
         </div>
       </section>
 

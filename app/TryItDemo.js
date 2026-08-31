@@ -89,6 +89,22 @@ export default function TryItDemo({ variant = "interactive" }) {
   const cardRefs = useRef({});
   const clickTimerRef = useRef(null);
 
+  // Scoped scroll: moves the card within the phone's OWN scroll
+  // container only, by measuring how far off it is from that
+  // container's center and nudging screenEl.scrollTop directly.
+  // Never touches window/document -- scrollIntoView() on the card
+  // element bubbles up and scrolls the whole marketing page too,
+  // which is exactly the bug this replaces.
+  const scrollCardIntoView = useCallback((id) => {
+    const screenEl = screenRef.current;
+    const cardEl = cardRefs.current[id];
+    if (!screenEl || !cardEl) return;
+    const screenRect = screenEl.getBoundingClientRect();
+    const cardRect = cardEl.getBoundingClientRect();
+    const delta = cardRect.top + cardRect.height / 2 - (screenRect.top + screenRect.height / 2);
+    screenEl.scrollTo({ top: screenEl.scrollTop + delta, behavior: "smooth" });
+  }, []);
+
   useEffect(() => {
     return () => {
       slots.forEach((s) => s.url && s.url.startsWith("blob:") && URL.revokeObjectURL(s.url));
@@ -118,9 +134,10 @@ export default function TryItDemo({ variant = "interactive" }) {
         // Auto-scroll the newly dropped card into view -- the phone's
         // screen is real feed height, taller than this small frame shows
         // at a glance, so without this the later cards would silently
-        // drop in off-screen.
+        // drop in off-screen. Scoped to the phone's own scroll
+        // container -- never the page.
         setTimeout(() => {
-          cardRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "center" });
+          scrollCardIntoView(id);
         }, 60);
         timer = setTimeout(dropNext, AMBIENT_DROP_MS);
       } else {

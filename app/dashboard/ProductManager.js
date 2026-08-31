@@ -41,6 +41,15 @@ const styles = {
     marginTop: "0.75rem",
   },
   dim: { color: "var(--ink-dim)", fontSize: "0.85rem" },
+  dropzone: (active) => ({
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.25rem",
+    padding: "0.6rem 0.75rem",
+    borderRadius: 10,
+    border: active ? "1px dashed var(--accent)" : "1px dashed var(--card-line)",
+    background: active ? "rgba(160, 120, 255, 0.08)" : "transparent",
+  }),
 };
 
 const TYPE_LABELS = {
@@ -107,9 +116,13 @@ function fileFieldsFor(type) {
 function ProductRow({ product }) {
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
+  const [dragOverKind, setDragOverKind] = useState(null);
 
-  async function handleFile(kind, e) {
-    const file = e.target.files?.[0];
+  // Shared by both entry points -- a normal <input type="file"> click/
+  // browse, and a file dragged straight onto the same field. Same
+  // upload, same validation, same status/error handling either way; the
+  // only difference is where the File object came from.
+  async function handleFile(kind, file) {
     if (!file) return;
     setStatus(`uploading-${kind}`);
     setError("");
@@ -120,6 +133,13 @@ function ProductRow({ product }) {
       setStatus("error");
       setError(err.message);
     }
+  }
+
+  function handleDrop(kind, e) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverKind(null);
+    handleFile(kind, e.dataTransfer.files?.[0]);
   }
 
   const fields = fileFieldsFor(product.type);
@@ -146,8 +166,22 @@ function ProductRow({ product }) {
       </p>
       <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
         {fields.map((f) => (
-          <label key={f.kind} style={styles.dim}>
-            {f.label} <input type="file" onChange={(e) => handleFile(f.kind, e)} />
+          <label
+            key={f.kind}
+            style={{ ...styles.dim, ...styles.dropzone(dragOverKind === f.kind) }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOverKind(f.kind);
+            }}
+            onDragLeave={() => setDragOverKind((k) => (k === f.kind ? null : k))}
+            onDrop={(e) => handleDrop(f.kind, e)}
+          >
+            {f.label}
+            <input
+              type="file"
+              onChange={(e) => handleFile(f.kind, e.target.files?.[0])}
+            />
+            <span style={{ fontSize: "0.75rem" }}>or drag &amp; drop a file here</span>
           </label>
         ))}
       </div>
