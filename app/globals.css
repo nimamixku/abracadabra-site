@@ -1059,3 +1059,122 @@ textarea {
     opacity: 0;
   }
 }
+
+/* ---------------------------------------------------------------------
+   Marketing / signup landing page (app/page.js) -- the new platform's
+   public root. Namespaced "marketing-" so nothing here can collide with
+   the old single-tenant homepage's classes (stashed, not deleted) or any
+   tenant storefront class. Pulls colors from the same CSS variables as
+   everything else so it automatically matches the platform's look.
+--------------------------------------------------------------------- */
+.marketing {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.marketing-hero {
+  padding: 6rem 1.5rem 4rem;
+  max-width: 720px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.marketing-kicker {
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.8rem;
+  margin: 0 0 1rem;
+}
+
+.marketing-hero h1 {
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  line-height: 1.15;
+  margin: 0 0 1.25rem;
+}
+
+.marketing-sub {
+  color: var(--ink-dim);
+  font-size: 1.05rem;
+  line-height: 1.6;
+  margin: 0 auto 2rem;
+  max-width: 620px;
+}
+
+.marketing-cta-row {
+  display: flex;
+  justify-content: center;
+}
+
+.marketing-cta-primary {
+  display: inline-block;
+  padding: 0.9rem 1.8rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #1a0f24;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 1rem;
+}
+
+.marketing-cta-primary:hover {
+  opacity: 0.92;
+}
+
+.marketing-section {
+  padding: 3rem 1.5rem;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.marketing-section h2 {
+  text-align: center;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  margin: 0 0 2rem;
+}
+
+.marketing-section-alt {
+  background: var(--card);
+  border-radius: 24px;
+}
+
+.marketing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem;
+}
+
+.marketing-card {
+  background: var(--card);
+  border: 1px solid var(--card-line);
+  border-radius: 16px;
+  padding: 1.5rem;
+}
+
+.marketing-section-alt .marketing-card {
+  background: var(--bg);
+}
+
+.marketing-card h3 {
+  margin: 0 0 0.6rem;
+  font-size: 1.05rem;
+}
+
+.marketing-card p {
+  margin: 0;
+  color: var(--ink-dim);
+  line-height: 1.55;
+  font-size: 0.95rem;
+}
+
+.marketing-cta-section {
+  text-align: center;
+}
+
+.marketing-footer {
+  text-align: center;
+  padding: 2rem 1.5rem 3rem;
+  color: var(--ink-dim);
+  font-size: 0.85rem;
+}
