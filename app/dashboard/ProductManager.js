@@ -113,6 +113,221 @@ function fileFieldsFor(type) {
   ];
 }
 
+// Bulk add: turns a "title (no extension), title-case" filename into a
+// starter product title -- e.g. "sunset-over-the-bay.tiff" -> "Sunset Over
+// The Bay". Just a starting point; the review step below lets the artist
+// change it before anything is actually created.
+function titleFromFilename(filename) {
+  const base = filename.replace(/\.[^./\\]+$/, "");
+  return base
+    .replace(/[-_]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(" ");
+}
+
+function baseNameKey(filename) {
+  return filename.replace(/\.[^./\\]+$/, "").toLowerCase();
+}
+
+// Groups a batch of dropped files into one product per shared filename
+// (before the extension) -- e.g. sunset.tiff + sunset.jpg become one
+// product's full-res file and preview. No matching file dropped at all
+// just means that product starts with a full-res file and no preview yet
+// (added later through the per-product drag-and-drop above, same as any
+// other product) -- nothing is auto-generated, per the plan's "artist
+// opts in, never a silent default" rule. When more than one candidate
+// shares a name, the larger file is assumed to be the full-res original
+// and the smaller one its preview -- true for every real case here (a
+// TIFF/RAW original is always far bigger than a compressed preview).
+function groupDroppedFiles(fileList) {
+  const groups = new Map();
+  Array.from(fileList).forEach((file) => {
+    const key = baseNameKey(file.name);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(file);
+  });
+  return Array.from(groups.entries()).map(([key, files]) => {
+    const sorted = [...files].sort((a, b) => b.size - a.size);
+    return {
+      key: `${key}-${Date.now()}-${Math.random()}`,
+      title: titleFromFilename(sorted[0].name),
+      price: "",
+      full: sorted[0],
+      previewImage: sorted.length > 1 ? sorted[1] : null,
+      status: "idle",
+      error: "",
+    };
+  });
+}
+
+function BulkUpload({ onDone }) {
+  const [pending, setPending] = useState([]);
+  const [dragOver, setDragOver] = useState(false);
+
+  function addFiles(fileList) {
+    if (!fileList || fileList.length === 0) return;
+    setPending((prev) => [...prev, ...groupDroppedFiles(fileList)]);
+  }
+
+  function updateItem(key, patch) {
+    setPending((prev) => prev.map((item) => (item.key === key ? { ...item, ...patch } : item)));
+  }
+
+  function removeItem(key) {
+    setPending((prev) => prev.filter((item) => item.key !== key));
+  }
+
+  // One product, start to finish: create it (this is what needs a real
+  // title and price -- both required by the API, same as the single-add
+  // form), then attach whichever file(s) this group matched.
+  async function addOne(item) {
+    const priceInt = Math.round(Number.parseFloat(item.price || "0") * 100);
+    if (!item.title.trim() || !Number.isFinite(priceInt) || priceInt <= 0) {
+      updateItem(item.key, { status: "error", error: "Title and a price are both required." });
+      return false;
+    }
+    updateItem(item.key, { status: "creating", error: "" });
+    try {
+      const res = await fetch("/api/dashboard/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "digital_image", title: item.title.trim(), priceCents: priceInt }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not create product.");
+      const productId = data.product.id;
+      await uploadProductFile({ productId, kind: "full", file: item.full });
+      if (item.previewImage) {
+        await uploadProductFile({ productId, kind: "preview_image", file: item.previewImage });
+      }
+      removeItem(item.key);
+      onDone();
+      return true;
+    } catch (err) {
+      updateItem(item.key, { status: "error", error: err.message });
+      return false;
+    }
+  }
+
+  async function addAll() {
+    const ready = pending.filter(
+      (item) => item.title.trim() && Number.parseFloat(item.price || "0") > 0
+    );
+    for (const item of ready) {
+      // Sequential on purpose -- these all PUT straight to R2, running
+      // them at once would just contend for the same upload bandwidth.
+      // eslint-disable-next-line no-await-in-loop
+      await addOne(item);
+    }
+  }
+
+  const allReady =
+    pending.length > 0 &&
+    pending.every((item) => item.title.trim() && Number.parseFloat(item.price || "0") > 0);
+
+  return (
+    <div style={{ ...styles.card, marginTop: "1rem" }}>
+      <strong>Bulk add</strong>
+      <p style={styles.dim}>
+        Drop in as many files as you want at once — files sharing the same
+        name before the extension (like <code>sunset.tiff</code> and{" "}
+        <code>sunset.jpg</code>) are paired automatically into one
+        product's full-res file and preview. Digital images only for now
+        — audio and physical items still go through "Add product" below.
+      </p>
+      <label
+        style={{
+          ...styles.dropzone(dragOver),
+          display: "block",
+          padding: "1.25rem",
+          textAlign: "center",
+          cursor: "pointer",
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          addFiles(e.dataTransfer.files);
+        }}
+      >
+        Drag &amp; drop files here, or click to choose
+        <input
+          type="file"
+          multiple
+          style={{ display: "block", marginTop: "0.5rem" }}
+          onChange={(e) => {
+            addFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
+      </label>
+
+      {pending.length > 0 && (
+        <div style={{ marginTop: "0.75rem" }}>
+          {pending.map((item) => (
+            <div key={item.key} style={{ ...styles.card, marginTop: "0.5rem" }}>
+              <p style={styles.dim}>
+                {item.full.name}
+                {item.previewImage
+                  ? ` + ${item.previewImage.name} (preview)`
+                  : " — no matching preview found; add one after this is created"}
+              </p>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+                <input
+                  style={{ ...styles.input, marginTop: 0, flex: "1 1 160px" }}
+                  value={item.title}
+                  onChange={(e) => updateItem(item.key, { title: e.target.value })}
+                  placeholder="Title"
+                />
+                <input
+                  style={{ ...styles.input, marginTop: 0, width: 120 }}
+                  value={item.price}
+                  onChange={(e) => updateItem(item.key, { price: e.target.value })}
+                  placeholder="Price (e.g. 25.00)"
+                  inputMode="decimal"
+                />
+                <button
+                  type="button"
+                  style={styles.button}
+                  onClick={() => addOne(item)}
+                  disabled={item.status === "creating"}
+                >
+                  {item.status === "creating" ? "Adding…" : "Add"}
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    ...styles.button,
+                    background: "transparent",
+                    border: "1px solid var(--card-line)",
+                    color: "var(--ink-dim)",
+                  }}
+                  onClick={() => removeItem(item.key)}
+                >
+                  Remove
+                </button>
+              </div>
+              {item.error && <p style={{ color: "#e08a8a", fontSize: "0.85rem" }}>{item.error}</p>}
+            </div>
+          ))}
+          <button type="button" style={styles.button} onClick={addAll} disabled={!allReady}>
+            Add all {pending.length} at once
+          </button>
+          {!allReady && (
+            <p style={styles.dim}>Give every piece above a title and a price to enable "Add all."</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ProductRow({ product }) {
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
@@ -253,7 +468,8 @@ export default function ProductManager() {
   return (
     <div>
       <h2>Products</h2>
-      <form onSubmit={handleCreate} style={{ maxWidth: 420 }}>
+      <BulkUpload onDone={loadProducts} />
+      <form onSubmit={handleCreate} style={{ maxWidth: 420, marginTop: "1.5rem" }}>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           {Object.entries(TYPE_LABELS).map(([value, label]) => (
             <button

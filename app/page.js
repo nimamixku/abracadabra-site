@@ -80,7 +80,6 @@ export default function MarketingHome() {
       </section>
 
       <section className="marketing-section">
-        <h2>A feed that never buries your work</h2>
         <div className="marketing-grid">
           <div className="marketing-card">
             <h3>No forced cropping, ever.</h3>
