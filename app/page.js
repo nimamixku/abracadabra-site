@@ -27,7 +27,8 @@ export default function MarketingHome() {
               A free look at your own work in the real feed — before you build
               anything.
             </p>
-            <p className="tryit-copy-hint">drag &amp; drop up to 5 images to preview</p>
+            <p className="tryit-copy-hint tryit-hint-drag">drag &amp; drop up to 5 images to preview</p>
+            <p className="tryit-copy-hint tryit-hint-tap">tap to add up to 5 images to preview</p>
             <p className="tryit-copy-hint tryit-copy-hint-tight">tap clear to reset and see again</p>
           </div>
           <TryItDemo />
@@ -54,31 +55,33 @@ export default function MarketingHome() {
       </section>
 
       <section className="ambient-section">
-        <AmbientLoop />
-        <p className="ambient-tagline">
-          A glimpse of the real feed — always moving, always shuffling.
-        </p>
+        <div className="ambient-left">
+          <AmbientLoop />
+          <div className="ambient-cards">
+            <div className="marketing-card marketing-card-compact">
+              <h3>No manual merchandising, ever.</h3>
+              <p>
+                The feed shuffles on its own — no homepage to arrange, no
+                decision about what goes first.
+              </p>
+            </div>
+            <div className="marketing-card marketing-card-compact">
+              <h3>No cart, ever.</h3>
+              <p>
+                Apple Pay or Google Pay, right from the feed — no cart, no
+                account required to buy.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="ambient-right">
+          <p className="ambient-tagline">A feed that never buries your work</p>
+        </div>
       </section>
 
       <section className="marketing-section">
         <h2>A feed that never buries your work</h2>
         <div className="marketing-grid">
-          <div className="marketing-card">
-            <h3>No manual merchandising, ever.</h3>
-            <p>
-              The feed shuffles on its own, so every piece gets its moment —
-              there's no homepage to arrange and no decision to make about
-              what goes first.
-            </p>
-          </div>
-          <div className="marketing-card">
-            <h3>No cart, ever.</h3>
-            <p>
-              Apple Pay or Google Pay, right from the feed. Someone falls for
-              a piece and owns it in the same motion — no cart, no account
-              required to buy.
-            </p>
-          </div>
           <div className="marketing-card">
             <h3>No forced cropping, ever.</h3>
             <p>

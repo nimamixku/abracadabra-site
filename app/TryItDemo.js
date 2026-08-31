@@ -15,21 +15,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 // uploaded anywhere; it's gone the moment the tab closes.
 //
 // variant="interactive" (default) is the hands-on version a visitor
-// drags their own photos into. Its empty placeholder cards are pixel-
-// identical to the real site's empty state (no added icon or
-// decoration). It also always shows the real chrome (shuffle button,
-// floating tap-&-pay widget, the clear control) even before anything's
-// been dropped in, and drifts gently on its own while idle, so it never
-// reads as a dead/static screen while waiting for a visitor to try it.
-//
-// variant="ambient" is the same component, driving itself on a timer
-// with the founder's own real preview photos (see AMBIENT_SAMPLE_POOL
-// below) and with all interaction disabled -- the small, passive
-// companion described in the plan. It keeps its normal, plain drop-in
-// behavior (a photo simply appears in its slot) rather than simulating
-// a drag gesture -- the real dashboard's own upload flow isn't drag-and-
-// drop today, so animating one here would promise something that isn't
-// actually built yet.
+// drags their own photos into. variant="ambient" is the same component,
+// driving itself on a timer with the founder's own real preview photos
+// (see AMBIENT_SAMPLE_POOL below) and with all interaction disabled --
+// the small, passive companion described in the plan, built as one
+// literal reuse of the interactive version instead of a second
+// hand-maintained copy that could drift out of sync with it.
 const DEMO_TITLES = [
   "Untitled",
   "Study No. 1",
@@ -65,11 +56,6 @@ const AMBIENT_SLOT_COUNT = 4;
 const AMBIENT_DROP_MS = 650;
 const AMBIENT_HOLD_MS = 2600;
 const AMBIENT_CLEAR_MS = 500;
-
-// How often the interactive phone drifts on its own while nobody's
-// dropped anything in yet -- just enough motion that it doesn't read as
-// a dead screen while it waits.
-const IDLE_DRIFT_MS = 4500;
 
 function formatPrice(cents) {
   return `$${(cents / 100).toFixed(2)}`;
@@ -111,21 +97,6 @@ export default function TryItDemo({ variant = "interactive" }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Scrolls a card into the middle of the phone's own scroll area only --
-  // deliberately never uses Element.scrollIntoView(), which bubbles up
-  // and can drag the whole page's scroll position along with it. This
-  // computes the target purely from this element's own scrollTop, so it
-  // can never touch window/document scroll.
-  const scrollCardIntoView = useCallback((id) => {
-    const screenEl = screenRef.current;
-    const cardEl = cardRefs.current[id];
-    if (!screenEl || !cardEl) return;
-    const screenRect = screenEl.getBoundingClientRect();
-    const cardRect = cardEl.getBoundingClientRect();
-    const delta = cardRect.top - screenRect.top - (screenEl.clientHeight - cardRect.height) / 2;
-    screenEl.scrollTo({ top: screenEl.scrollTop + delta, behavior: "smooth" });
-  }, []);
-
   // Ambient mode: drive the whole thing on a timer instead of user
   // input -- drop in, hold, shuffle, hold, clear, repeat, forever.
   useEffect(() => {
@@ -144,9 +115,13 @@ export default function TryItDemo({ variant = "interactive" }) {
           prev.map((s) => (s.id === id ? { ...s, url: `/previews/${pool[id]}`, title } : s))
         );
         filledCount++;
-        // Scoped strictly to the phone's own scroll area -- see
-        // scrollCardIntoView above, never touches window/document.
-        scrollCardIntoView(id);
+        // Auto-scroll the newly dropped card into view -- the phone's
+        // screen is real feed height, taller than this small frame shows
+        // at a glance, so without this the later cards would silently
+        // drop in off-screen.
+        setTimeout(() => {
+          cardRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 60);
         timer = setTimeout(dropNext, AMBIENT_DROP_MS);
       } else {
         timer = setTimeout(shuffleOnce, AMBIENT_HOLD_MS);
@@ -171,34 +146,10 @@ export default function TryItDemo({ variant = "interactive" }) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [isAmbient, scrollCardIntoView]);
+  }, [isAmbient]);
 
   const filled = slots.filter((s) => s.url);
   const hasAny = filled.length > 0;
-
-  // Interactive mode only: while nobody's dropped a photo in yet, drift
-  // the empty feed gently on its own so the phone never reads as a dead,
-  // static screen -- it settles the moment something real gets dropped.
-  useEffect(() => {
-    if (isAmbient || hasAny) return undefined;
-    const screenEl = screenRef.current;
-    if (!screenEl) return undefined;
-    let cancelled = false;
-    let dir = 1;
-    function tick() {
-      if (cancelled) return;
-      const max = screenEl.scrollHeight - screenEl.clientHeight;
-      if (max <= 0) return;
-      screenEl.scrollTo({ top: dir > 0 ? max : 0, behavior: "smooth" });
-      dir *= -1;
-    }
-    const id = setInterval(tick, IDLE_DRIFT_MS);
-    tick();
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [isAmbient, hasAny]);
 
   // Mirrors the real storefront's ActiveCardContext -- tracks whichever
   // filled card is most visible in the phone's own scroll area, so the
@@ -299,14 +250,8 @@ export default function TryItDemo({ variant = "interactive" }) {
   }
 
   const expandedSlot = !isAmbient && expandedId != null ? slots.find((s) => s.id === expandedId) : null;
-  // The interactive phone always shows its chrome, even before anything's
-  // dropped in, so it never looks dead while waiting -- the ambient loop
-  // keeps its normal behavior (chrome only once it's actually filled).
-  const showChrome = !isAmbient || hasAny;
   const activeSlot =
-    slots.find((s) => s.id === activeId && s.url) ||
-    filled[filled.length - 1] ||
-    (!isAmbient ? { id: -1, url: null, title: DEMO_TITLES[0] } : null);
+    slots.find((s) => s.id === activeId && s.url) || filled[filled.length - 1] || null;
 
   return (
     <div className={`tryit-wrap${isAmbient ? " tryit-wrap-ambient" : ""}`} aria-hidden={isAmbient || undefined}>
@@ -317,7 +262,14 @@ export default function TryItDemo({ variant = "interactive" }) {
       >
         <div className="tryit-notch" />
         {!isAmbient && !hasAny && (
-          <p className="tryit-floating-hint">drag &amp; drop up to 5 images to preview</p>
+          <>
+            <p className="tryit-floating-hint tryit-hint-drag">
+              drag &amp; drop any image to preview
+            </p>
+            <p className="tryit-floating-hint tryit-hint-tap">
+              tap to add any image to preview
+            </p>
+          </>
         )}
 
         <div className="tryit-screen" ref={screenRef}>
@@ -350,7 +302,9 @@ export default function TryItDemo({ variant = "interactive" }) {
                   {slot.url ? (
                     <img src={slot.url} alt="" />
                   ) : (
-                    <div className="tenant-card-media-empty" aria-hidden="true" />
+                    <div className="tenant-card-media-empty tryit-empty-plus" aria-hidden="true">
+                      {!isAmbient && <span className="tryit-card-plus">+</span>}
+                    </div>
                   )}
                   {slot.url && (
                     <button
@@ -389,7 +343,7 @@ export default function TryItDemo({ variant = "interactive" }) {
           {hasAny && !isAmbient && <p className="loading-more">keep scrolling — it reshuffles</p>}
         </div>
 
-        {showChrome && (
+        {hasAny && (
           <button
             type="button"
             className="floating-shuffle"
@@ -401,7 +355,7 @@ export default function TryItDemo({ variant = "interactive" }) {
           </button>
         )}
 
-        {showChrome && activeSlot && (
+        {activeSlot && (
           <div
             className="floating-buy-wrap tryit-floating-buy"
             onClick={() => !isAmbient && setBuyHint(true)}
@@ -415,9 +369,9 @@ export default function TryItDemo({ variant = "interactive" }) {
           </div>
         )}
 
-        {!isAmbient && (
-          <button type="button" className="tryit-clear tryit-clear-big" onClick={handleClear}>
-            Clear
+        {hasAny && !isAmbient && (
+          <button type="button" className="tryit-clear" onClick={handleClear}>
+            clear
           </button>
         )}
 
