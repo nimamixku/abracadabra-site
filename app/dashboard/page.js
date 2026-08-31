@@ -5,6 +5,7 @@ import CreateShopForm from "./CreateShopForm";
 import ProductManager from "./ProductManager";
 import SignOutButton from "./SignOutButton";
 import ConnectPayoutsButton from "./ConnectPayoutsButton";
+import ThemePicker from "./ThemePicker";
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();
@@ -45,6 +46,7 @@ export default async function DashboardPage() {
               </p>
             )}
             <ConnectPayoutsButton status={tenant.stripe_connect_status} />
+            <ThemePicker tenant={tenant} />
             <ProductManager />
           </>
         ) : (

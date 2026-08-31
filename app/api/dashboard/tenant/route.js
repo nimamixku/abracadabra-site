@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, getSessionTenant } from "@/lib/auth";
 import { query } from "@/lib/db";
 
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])?$/;
 const SELLING_MODES = new Set(["fiat", "crypto"]);
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 
 // Creates the artist's shop. One per user for now (see lib/auth.js's
 // getSessionTenant comment) -- this route 400s if the session already
@@ -49,4 +50,33 @@ export async function POST(req) {
     console.error(err);
     return NextResponse.json({ error: "Something went wrong." }, { status: 500 });
   }
+}
+
+// Updates the two customizable colors on the signed-in owner's own shop
+// (never any other tenant's -- scoped by getSessionTenant, same instinct
+// as every other dashboard route). Either field can be sent alone; the
+// other keeps whatever it already was. An explicit null clears a color
+// back to the platform default rather than leaving it stuck once set.
+export async function PATCH(req) {
+  const { user, tenant } = await getSessionTenant(req.cookies);
+  if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  if (!tenant) return NextResponse.json({ error: "No shop yet." }, { status: 400 });
+
+  const { bgColor, inkColor } = await req.json();
+
+  for (const [label, value] of [["bgColor", bgColor], ["inkColor", inkColor]]) {
+    if (value !== undefined && value !== null && !HEX_COLOR_RE.test(value)) {
+      return NextResponse.json({ error: `${label} must be a hex color like #0b0b0d.` }, { status: 400 });
+    }
+  }
+
+  const { rows } = await query(
+    `update tenants set
+       bg_color = case when $2::text is distinct from '__unset__' then $2 else bg_color end,
+       ink_color = case when $3::text is distinct from '__unset__' then $3 else ink_color end
+     where id = $1
+     returning id, bg_color, ink_color`,
+    [tenant.id, bgColor === undefined ? "__unset__" : bgColor, inkColor === undefined ? "__unset__" : inkColor]
+  );
+  return NextResponse.json({ ok: true, tenant: rows[0] });
 }

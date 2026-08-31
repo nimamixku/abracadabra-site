@@ -14,8 +14,22 @@ export default async function TenantStorefront({ params }) {
 
   const products = await getStorefrontProducts(tenant.id);
 
+  // The only two things a shop can customize (plan's "palette is
+  // customizable -- nothing else is" section): background and text
+  // color. Set as both the actual background/color (so this fills the
+  // viewport regardless of the platform default set on <body>) and as
+  // the --bg/--ink custom properties (so anything downstream that reads
+  // var(--bg)/var(--ink) -- e.g. an empty-state placeholder -- picks up
+  // the same override). Left undefined when a tenant hasn't set one, so
+  // the platform default shows through exactly as before.
+  const themeStyle = {
+    minHeight: "100dvh",
+    ...(tenant.bg_color ? { background: tenant.bg_color, "--bg": tenant.bg_color } : {}),
+    ...(tenant.ink_color ? { color: tenant.ink_color, "--ink": tenant.ink_color } : {}),
+  };
+
   return (
-    <main className="page">
+    <main className="page" style={themeStyle}>
       <div className="masthead">
         <span className="brand">{tenant.shop_name}</span>
       </div>
