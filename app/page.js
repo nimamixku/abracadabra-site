@@ -101,7 +101,6 @@ export default function MarketingHome() {
       </section>
 
       <section className="marketing-section marketing-section-alt">
-        <h2>Nothing up our sleeve</h2>
         <div className="marketing-grid">
           <div className="marketing-card">
             <h3>Feels like posting, not paperwork.</h3>
