@@ -69,6 +69,35 @@ function formatPrice(cents) {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+// Same starter-title logic as the real dashboard's bulk upload
+// (ProductManager.js's titleFromFilename) -- turns "sunset-over-the-
+// bay.jpg" into "Sunset Over The Bay". A visitor's own dropped photo gets
+// a real starting title pulled from its own filename, editable right on
+// the card, same as an artist would see on their own dashboard -- this
+// is the "simulate the real experience as much as possible" version of
+// the demo: type a title and a price, right here, the same motion as
+// actually posting a piece. Still purely local/in-memory -- nothing
+// typed here is ever sent anywhere, same as the photos themselves.
+function titleFromFilename(filename) {
+  const base = String(filename || "").replace(/\.[^./\\]+$/, "");
+  const title = base
+    .replace(/[-_]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(" ");
+  return title || "Untitled";
+}
+
+// Whatever the visitor typed, or a sensible fallback while the price
+// field is still blank -- so the floating "tap & pay" chip and the
+// lightbox still show a real-looking number even before anyone bothers
+// to type one in.
+function priceCentsFor(slot) {
+  const parsed = Math.round(Number.parseFloat(slot?.priceInput || "") * 100);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEMO_PRICE_CENTS;
+}
+
 function shuffleArray(arr) {
   const copy = [...arr];
   for (let i = copy.length - 1; i > 0; i--) {
@@ -79,7 +108,7 @@ function shuffleArray(arr) {
 }
 
 function emptySlots(count) {
-  return Array.from({ length: count }, (_, i) => ({ id: i, url: null, title: null }));
+  return Array.from({ length: count }, (_, i) => ({ id: i, url: null, title: null, priceInput: "" }));
 }
 
 export default function TryItDemo({ variant = "interactive" }) {
@@ -204,11 +233,18 @@ export default function TryItDemo({ variant = "interactive" }) {
     (id, file) => {
       if (isAmbient || id == null || !file || !file.type.startsWith("image/")) return;
       const url = URL.createObjectURL(file);
-      const title = DEMO_TITLES[Math.floor(Math.random() * DEMO_TITLES.length)];
-      setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, url, title } : s)));
+      const title = titleFromFilename(file.name);
+      setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, url, title, priceInput: "" } : s)));
     },
     [isAmbient]
   );
+
+  // Editable title/price, typed right on the card -- see titleFromFilename
+  // above for why title starts pre-filled from the dropped file's own
+  // name while price starts blank for the visitor to set themselves.
+  function updateSlotField(id, field, value) {
+    setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
+  }
 
   function handlePhoneDrop(e) {
     if (isAmbient) return;
@@ -369,9 +405,28 @@ export default function TryItDemo({ variant = "interactive" }) {
                 {slot.url && (
                   <div className="card-body">
                     <div className="card-row">
-                      <p className="card-title">{slot.title}</p>
+                      {/* A real title/price, typed right here -- not a
+                          fixed template -- so this simulates the actual
+                          posting motion (drop a file, add a caption and
+                          a price) as closely as the real dashboard does,
+                          not just a picture of what the feed looks like. */}
+                      <input
+                        className="card-title tryit-title-input"
+                        value={slot.title ?? ""}
+                        onChange={(e) => updateSlotField(slot.id, "title", e.target.value)}
+                        placeholder="Add a title"
+                        maxLength={60}
+                        aria-label="Title"
+                      />
                       <div className="card-price-col">
-                        <p className="card-price">{formatPrice(DEMO_PRICE_CENTS)}</p>
+                        <input
+                          className="card-price tryit-price-input"
+                          value={slot.priceInput ?? ""}
+                          onChange={(e) => updateSlotField(slot.id, "priceInput", e.target.value)}
+                          placeholder={formatPrice(DEMO_PRICE_CENTS)}
+                          inputMode="decimal"
+                          aria-label="Price"
+                        />
                       </div>
                     </div>
                   </div>
@@ -402,7 +457,7 @@ export default function TryItDemo({ variant = "interactive" }) {
             tabIndex={isAmbient ? -1 : 0}
           >
             <p className="floating-buy-title">
-              <span className="floating-buy-title-text">{activeSlot.title}</span>
+              <span className="floating-buy-title-text">{activeSlot.title || "Untitled"}</span>
               <span className="tap-pay-chip">✦ tap &amp; pay</span>
             </p>
           </div>
@@ -488,11 +543,11 @@ export default function TryItDemo({ variant = "interactive" }) {
           <img className="tenant-lightbox-img" src={expandedSlot.url} alt="" />
           <div className="lightbox-buy" onClick={(e) => e.stopPropagation()}>
             <p className="lightbox-title">
-              {expandedSlot.title} · {formatPrice(DEMO_PRICE_CENTS)}
+              {expandedSlot.title || "Untitled"} · {formatPrice(priceCentsFor(expandedSlot))}
               <span className="tap-pay-chip">✦ tap &amp; pay</span>
             </p>
             <button type="button" className="quick-card-btn" onClick={() => setBuyHint(true)}>
-              pay with card — {formatPrice(DEMO_PRICE_CENTS)}
+              pay with card — {formatPrice(priceCentsFor(expandedSlot))}
             </button>
           </div>
           <p className="lightbox-hint">tap the image to go back</p>
