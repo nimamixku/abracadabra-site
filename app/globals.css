@@ -49,14 +49,19 @@ a {
 }
 
 /* ---- masthead ---- */
-/* The ABRACADABRA header always stays visible while scrolling -- pinned
-   to the top so a customer never loses sight of the shop name/logo.
-   One unconditional rule, no media query, no width-dependent split --
-   sticky at every window width, mobile and desktop alike. */
-.masthead {
+/* Sticky lives on the wrapper, not .masthead itself, so the marquee
+   right below it rides along as one sticky unit with the header, on
+   both desktop and mobile -- restored to this exact original version
+   (commit 5d197af), confirmed working on an actual deployment, after
+   several later attempts to split desktop/mobile behavior differently
+   never reliably held up in practice. */
+.masthead-group {
   position: sticky;
   top: 0;
   z-index: 20;
+}
+
+.masthead {
   background: rgba(11, 11, 13, 0.85);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--card-line);
