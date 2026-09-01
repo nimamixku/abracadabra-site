@@ -40,16 +40,18 @@ a {
 }
 
 /* ---- masthead ---- */
-/* Sticky moves to .masthead itself, not the wrapper -- the header still
-   pins in place exactly as before, but the marquee (the wrapper's other
-   child) is no longer part of that sticky unit, so it scrolls away
-   normally on its own instead of staying pinned alongside the header. */
+/* Sticky lives on .masthead alone, not the wrapper -- the header pins
+   in place, the marquee (the wrapper's other child) is not part of
+   that sticky unit, so it scrolls away normally on its own. Background
+   is fully solid (no transparency, no blur) so the marquee can never
+   show through it as it passes underneath -- that ghosting was the
+   only actual problem with decoupling these two; nothing else about
+   the header changes. */
 .masthead {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: rgba(11, 11, 13, 0.85);
-  backdrop-filter: blur(10px);
+  background: #0b0b0d;
   border-bottom: 1px solid var(--card-line);
   padding: 18px 20px;
   display: flex;
