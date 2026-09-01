@@ -31,7 +31,7 @@ export default function MarketingHome() {
             </p>
             <p className="tryit-copy-hint tryit-hint-drag">drag &amp; drop up to 5 images to preview</p>
             <p className="tryit-copy-hint tryit-hint-tap">tap to add up to 5 images to preview</p>
-            <p className="tryit-copy-hint tryit-copy-hint-tight">tap clear to reset and see again</p>
+            <p className="tryit-copy-hint tryit-copy-hint-tight">tap the clear button to reset and see again</p>
           </div>
           <TryItDemo />
         </div>
