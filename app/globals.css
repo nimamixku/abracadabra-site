@@ -1379,6 +1379,14 @@ textarea {
   display: none;
 }
 
+/* Mobile-only reword of the clear-button hint ("tap the clear button..."
+   instead of "tap clear...") -- same display:none/block swap pattern as
+   the drag/tap hints above, so desktop keeps its original wording and
+   only mobile gets the updated copy. */
+.tryit-clear-hint-mobile {
+  display: none;
+}
+
 @media (max-width: 980px) {
   .tryit-copy-hint {
     text-align: center;
@@ -1387,6 +1395,12 @@ textarea {
     display: none;
   }
   .tryit-hint-tap {
+    display: block;
+  }
+  .tryit-clear-hint-desktop {
+    display: none;
+  }
+  .tryit-clear-hint-mobile {
     display: block;
   }
 }
