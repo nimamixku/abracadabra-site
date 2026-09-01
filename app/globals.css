@@ -40,14 +40,18 @@ a {
 }
 
 /* ---- masthead ---- */
-/* Plain normal flow -- no sticky, on either the wrapper or .masthead
-   itself. Confirmed via direct visual check (scrolled the actual page
-   to the bottom and watched both disappear off the top together) that
-   this plain-scroll-away behavior, for both the header and the marquee
-   together, is the correct/wanted one. */
+/* Sticky lives on .masthead alone, not the wrapper -- the header pins
+   in place, the marquee (the wrapper's other child) is not part of
+   that sticky unit, so it scrolls away normally on its own. Background
+   is fully solid (no transparency, no blur) so the marquee can never
+   show through it as it passes underneath. Verified by actually
+   scrolling the confirmed-correct reference deployment step by step
+   (not a jump-to-bottom guess) and watching this exact behavior. */
 .masthead {
-  background: rgba(11, 11, 13, 0.85);
-  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: #0b0b0d;
   border-bottom: 1px solid var(--card-line);
   padding: 18px 20px;
   display: flex;
