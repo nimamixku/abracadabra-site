@@ -25,9 +25,19 @@ body {
    font sizes, gaps, padding) -- 80% of the unstyled browser default
    (16px -> 12.8px). This is the confirmed-good value from the 80%-zoom
    comparison -- reverted back to it after the further cut to 10.24px
-   made text proportions look wrong. */
+   made text proportions look wrong. Mobile stays at this value. */
 html {
   font-size: 12.8px;
+}
+
+/* Desktop only, on top of the shared 12.8px above -- a further modest,
+   uniform 10% cut (still just this one multiplier, so every ratio
+   between elements stays exactly the same, nothing individually
+   resized). Mobile is untouched by this rule. */
+@media (min-width: 981px) {
+  html {
+    font-size: 11.52px;
+  }
 }
 
 body {
@@ -49,14 +59,11 @@ a {
 }
 
 /* ---- masthead ---- */
-/* Desktop: back to the original behavior -- only the header itself
-   sticks, the marquee scrolls away normally underneath it. Mobile gets
-   a different rule below (the marquee rides along with the header as
-   one sticky unit there) -- see the max-width:980px override. */
+/* Desktop: normal flow -- the header scrolls away with the rest of the
+   page, same as everything else. Mobile gets a different rule below
+   (the header + marquee ride together as one sticky unit there) -- see
+   the max-width:980px override. */
 .masthead {
-  position: sticky;
-  top: 0;
-  z-index: 20;
   background: rgba(11, 11, 13, 0.85);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--card-line);
