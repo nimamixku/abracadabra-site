@@ -40,18 +40,21 @@ a {
 }
 
 /* ---- masthead ---- */
-/* Sticky lives on .masthead alone, not the wrapper -- the header pins
-   in place, the marquee (the wrapper's other child) is not part of
-   that sticky unit, so it scrolls away normally on its own. Background
-   is fully solid (no transparency, no blur) so the marquee can never
-   show through it as it passes underneath -- that ghosting was the
-   only actual problem with decoupling these two; nothing else about
-   the header changes. */
-.masthead {
+/* Sticky lives on the wrapper, not .masthead itself, so the marquee
+   right below it rides along as one sticky unit with the header, on
+   both desktop and mobile -- back to this confirmed-good version.
+   Decoupling the marquee from the header has been tried a few times
+   now and kept surfacing real visual problems (ghosting through the
+   header's background as it scrolled underneath); staying coupled. */
+.masthead-group {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: #0b0b0d;
+}
+
+.masthead {
+  background: rgba(11, 11, 13, 0.85);
+  backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--card-line);
   padding: 18px 20px;
   display: flex;
