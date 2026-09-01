@@ -334,9 +334,14 @@ export default function TryItDemo({ variant = "interactive" }) {
       >
         <div className="tryit-notch" />
         {!isAmbient && !hasAny && (
-          <p className="tryit-floating-hint tryit-hint-drag">
-            drag &amp; drop any image to preview
-          </p>
+          <>
+            <p className="tryit-floating-hint tryit-hint-drag">
+              drag &amp; drop / tap &amp; upload any image to preview
+            </p>
+            <p className="tryit-floating-hint tryit-hint-tap">
+              tap &amp; upload any image to preview
+            </p>
+          </>
         )}
 
         <div
