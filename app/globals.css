@@ -40,18 +40,11 @@ a {
 }
 
 /* ---- masthead ---- */
-/* Sticky lives on the wrapper, not .masthead itself, so the marquee
-   right below it rides along as one sticky unit with the header, on
-   both desktop and mobile -- back to this confirmed-good version.
-   Decoupling the marquee from the header has been tried a few times
-   now and kept surfacing real visual problems (ghosting through the
-   header's background as it scrolled underneath); staying coupled. */
-.masthead-group {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-}
-
+/* Plain normal flow -- no sticky, on either the wrapper or .masthead
+   itself. Confirmed via direct visual check (scrolled the actual page
+   to the bottom and watched both disappear off the top together) that
+   this plain-scroll-away behavior, for both the header and the marquee
+   together, is the correct/wanted one. */
 .masthead {
   background: rgba(11, 11, 13, 0.85);
   backdrop-filter: blur(10px);
