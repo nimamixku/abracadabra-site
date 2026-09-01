@@ -47,7 +47,7 @@ export default async function DashboardPage() {
             )}
             <ConnectPayoutsButton status={tenant.stripe_connect_status} />
             <ThemePicker tenant={tenant} />
-            <ProductManager />
+            <ProductManager tenant={tenant} />
           </>
         ) : (
           <CreateShopForm />

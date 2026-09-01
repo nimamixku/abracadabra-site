@@ -45,17 +45,29 @@ export async function POST(req) {
   const { tenant } = await getSessionTenant(req.cookies);
   if (!tenant) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
-  const { title, description, priceCents, type, sizes, shippingCents, crop } = await req.json();
+  const { title, description, priceCents, type, sizes, shippingCents, crop, draft } = await req.json();
   const normalizedTitle = String(title || "").trim();
   const priceInt = Number.parseInt(priceCents, 10);
   const normalizedType = PRODUCT_TYPES.has(type) ? type : "digital_image";
 
-  if (!normalizedTitle) {
-    return NextResponse.json({ error: "Title is required." }, { status: 400 });
+  // Draft: saved immediately on file-drop, before an artist has typed a
+  // title or price -- see ProductManager's immediate-upload-on-drop flow.
+  // A draft can be created with nothing but a type; it stays invisible to
+  // the real storefront (active=false, same column the storefront query
+  // already filters on -- no separate "draft" flag needed) until it's
+  // published later via PATCH .../[id] with active:true, which is where
+  // title/price actually become required.
+  const isDraft = Boolean(draft);
+
+  if (!isDraft) {
+    if (!normalizedTitle) {
+      return NextResponse.json({ error: "Title is required." }, { status: 400 });
+    }
+    if (!Number.isFinite(priceInt) || priceInt <= 0) {
+      return NextResponse.json({ error: "Price must be a positive number of cents." }, { status: 400 });
+    }
   }
-  if (!Number.isFinite(priceInt) || priceInt <= 0) {
-    return NextResponse.json({ error: "Price must be a positive number of cents." }, { status: 400 });
-  }
+  const safePriceInt = Number.isFinite(priceInt) && priceInt >= 0 ? priceInt : 0;
 
   // Only `physical` has extra fields today -- sizes (optional; an item
   // with no size options just skips the size picker at checkout) and a
@@ -89,10 +101,18 @@ export async function POST(req) {
   }
 
   const { rows } = await query(
-    `insert into products (tenant_id, type, title, description, price_cents, details)
-     values ($1, $2, $3, $4, $5, $6)
+    `insert into products (tenant_id, type, title, description, price_cents, details, active)
+     values ($1, $2, $3, $4, $5, $6, $7)
      returning id, type, title, description, price_cents, details, active, created_at`,
-    [tenant.id, normalizedType, normalizedTitle, String(description || "").trim(), priceInt, JSON.stringify(details)]
+    [
+      tenant.id,
+      normalizedType,
+      normalizedTitle,
+      String(description || "").trim(),
+      safePriceInt,
+      JSON.stringify(details),
+      !isDraft,
+    ]
   );
   return NextResponse.json({ ok: true, product: rows[0] });
 }

@@ -2,56 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-const styles = {
-  input: {
-    width: "100%",
-    padding: "0.65rem 0.9rem",
-    borderRadius: 10,
-    border: "1px solid var(--card-line)",
-    background: "var(--bg)",
-    color: "var(--ink)",
-    fontSize: "0.95rem",
-    marginTop: "0.5rem",
-  },
-  button: {
-    padding: "0.6rem 1rem",
-    borderRadius: 10,
-    border: "none",
-    background: "var(--accent)",
-    color: "#1a0f24",
-    fontWeight: 600,
-    cursor: "pointer",
-    marginTop: "0.75rem",
-  },
-  typeButton: (active) => ({
-    padding: "0.5rem 0.9rem",
-    borderRadius: 10,
-    border: active ? "1px solid var(--accent)" : "1px solid var(--card-line)",
-    background: active ? "var(--accent)" : "var(--bg)",
-    color: active ? "#1a0f24" : "var(--ink)",
-    fontWeight: 600,
-    cursor: "pointer",
-    fontSize: "0.85rem",
-  }),
-  card: {
-    background: "var(--card)",
-    border: "1px solid var(--card-line)",
-    borderRadius: 12,
-    padding: "1rem",
-    marginTop: "0.75rem",
-  },
-  dim: { color: "var(--ink-dim)", fontSize: "0.85rem" },
-  dropzone: (active) => ({
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.25rem",
-    padding: "0.6rem 0.75rem",
-    borderRadius: 10,
-    border: active ? "1px dashed var(--accent)" : "1px dashed var(--card-line)",
-    background: active ? "rgba(160, 120, 255, 0.08)" : "transparent",
-  }),
-};
-
 const TYPE_LABELS = {
   digital_image: "Digital image",
   digital_audio: "Digital audio",
@@ -59,7 +9,7 @@ const TYPE_LABELS = {
 };
 
 function formatPrice(cents) {
-  return `$${(cents / 100).toFixed(2)}`;
+  return `$${(Number(cents || 0) / 100).toFixed(2)}`;
 }
 
 // Uploads a file for one product (full-res / preview image / preview
@@ -113,10 +63,10 @@ function fileFieldsFor(type) {
   ];
 }
 
-// Bulk add: turns a "title (no extension), title-case" filename into a
-// starter product title -- e.g. "sunset-over-the-bay.tiff" -> "Sunset Over
-// The Bay". Just a starting point; the review step below lets the artist
-// change it before anything is actually created.
+// Turns a "title (no extension), title-case" filename into a starter
+// product title -- e.g. "sunset-over-the-bay.tiff" -> "Sunset Over The
+// Bay". Just a starting point; the artist can change it any time in the
+// card below.
 function titleFromFilename(filename) {
   const base = filename.replace(/\.[^./\\]+$/, "");
   return base
@@ -135,12 +85,12 @@ function baseNameKey(filename) {
 // (before the extension) -- e.g. sunset.tiff + sunset.jpg become one
 // product's full-res file and preview. No matching file dropped at all
 // just means that product starts with a full-res file and no preview yet
-// (added later through the per-product drag-and-drop above, same as any
-// other product) -- nothing is auto-generated, per the plan's "artist
-// opts in, never a silent default" rule. When more than one candidate
-// shares a name, the larger file is assumed to be the full-res original
-// and the smaller one its preview -- true for every real case here (a
-// TIFF/RAW original is always far bigger than a compressed preview).
+// (addable later through the per-product dropzone in its own card, same
+// as any other product) -- nothing is auto-generated here. When more
+// than one candidate shares a name, the larger file is assumed to be the
+// full-res original and the smaller one its preview -- true for every
+// real case here (a TIFF/RAW original is always far bigger than a
+// compressed preview).
 function groupDroppedFiles(fileList) {
   const groups = new Map();
   Array.from(fileList).forEach((file) => {
@@ -153,239 +103,50 @@ function groupDroppedFiles(fileList) {
     return {
       key: `${key}-${Date.now()}-${Math.random()}`,
       title: titleFromFilename(sorted[0].name),
-      price: "",
       full: sorted[0],
       previewImage: sorted.length > 1 ? sorted[1] : null,
-      // Only meaningful when there's no matched previewImage -- opt-in,
-      // defaults off, per-item or via the "generate for all of these"
-      // checkbox below (which itself never locks anything: any single
-      // piece can still be flipped back individually afterward).
-      generatePreview: false,
-      status: "idle",
-      error: "",
     };
   });
 }
 
-function BulkUpload({ onDone }) {
-  const [pending, setPending] = useState([]);
-  const [dragOver, setDragOver] = useState(false);
-
-  function addFiles(fileList) {
-    if (!fileList || fileList.length === 0) return;
-    setPending((prev) => [...prev, ...groupDroppedFiles(fileList)]);
-  }
-
-  function updateItem(key, patch) {
-    setPending((prev) => prev.map((item) => (item.key === key ? { ...item, ...patch } : item)));
-  }
-
-  function removeItem(key) {
-    setPending((prev) => prev.filter((item) => item.key !== key));
-  }
-
-  // One product, start to finish: create it (this is what needs a real
-  // title and price -- both required by the API, same as the single-add
-  // form), then attach whichever file(s) this group matched.
-  async function addOne(item) {
-    const priceInt = Math.round(Number.parseFloat(item.price || "0") * 100);
-    if (!item.title.trim() || !Number.isFinite(priceInt) || priceInt <= 0) {
-      updateItem(item.key, { status: "error", error: "Title and a price are both required." });
-      return false;
-    }
-    updateItem(item.key, { status: "creating", error: "" });
-    try {
-      const res = await fetch("/api/dashboard/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "digital_image", title: item.title.trim(), priceCents: priceInt }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Could not create product.");
-      const productId = data.product.id;
-      await uploadProductFile({ productId, kind: "full", file: item.full });
-      if (item.previewImage) {
-        await uploadProductFile({ productId, kind: "preview_image", file: item.previewImage });
-      } else if (item.generatePreview) {
-        // Opt-in, per this specific piece -- same endpoint and same
-        // "artist chose this" reasoning as the single-product "Generate
-        // preview" button in ProductRow. A failure here doesn't undo the
-        // product itself; it just leaves this one without a preview yet,
-        // same as if the checkbox had been left off.
-        const genRes = await fetch(`/api/dashboard/products/${productId}/generate-preview`, {
-          method: "POST",
-        });
-        if (!genRes.ok) {
-          const genData = await genRes.json().catch(() => ({}));
-          console.error("Bulk add: preview generation failed for", item.full.name, genData.error);
-        }
-      }
-      removeItem(item.key);
-      onDone();
-      return true;
-    } catch (err) {
-      updateItem(item.key, { status: "error", error: err.message });
-      return false;
-    }
-  }
-
-  async function addAll() {
-    const ready = pending.filter(
-      (item) => item.title.trim() && Number.parseFloat(item.price || "0") > 0
-    );
-    for (const item of ready) {
-      // Sequential on purpose -- these all PUT straight to R2, running
-      // them at once would just contend for the same upload bandwidth.
-      // eslint-disable-next-line no-await-in-loop
-      await addOne(item);
-    }
-  }
-
-  // The "for all of these" shortcut from the plan -- a one-time bulk
-  // apply, not a permanent binding: it flips every currently-pending
-  // piece with no matched preview to opted-in, but each one's own
-  // checkbox still works normally afterward, so a piece can be flipped
-  // back off individually without affecting the others.
-  function generateAllMissing() {
-    setPending((prev) =>
-      prev.map((item) => (item.previewImage ? item : { ...item, generatePreview: true }))
-    );
-  }
-
-  const missingPreviewCount = pending.filter((item) => !item.previewImage).length;
-
-  const allReady =
-    pending.length > 0 &&
-    pending.every((item) => item.title.trim() && Number.parseFloat(item.price || "0") > 0);
-
-  return (
-    <div style={{ ...styles.card, marginTop: "1rem" }}>
-      <strong>Bulk add</strong>
-      <p style={styles.dim}>
-        Drop in as many files as you want at once — files sharing the same
-        name before the extension (like <code>sunset.tiff</code> and{" "}
-        <code>sunset.jpg</code>) are paired automatically into one
-        product's full-res file and preview. Digital images only for now
-        — audio and physical items still go through "Add product" below.
-      </p>
-      <label
-        style={{
-          ...styles.dropzone(dragOver),
-          display: "block",
-          padding: "1.25rem",
-          textAlign: "center",
-          cursor: "pointer",
-        }}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragOver(true);
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragOver(false);
-          addFiles(e.dataTransfer.files);
-        }}
-      >
-        Drag &amp; drop files here, or click to choose
-        <input
-          type="file"
-          multiple
-          style={{ display: "block", marginTop: "0.5rem" }}
-          onChange={(e) => {
-            addFiles(e.target.files);
-            e.target.value = "";
-          }}
-        />
-      </label>
-
-      {missingPreviewCount > 0 && (
-        <button
-          type="button"
-          onClick={generateAllMissing}
-          style={{ ...styles.typeButton(false), marginTop: "0.75rem" }}
-        >
-          Generate previews for all {missingPreviewCount} piece{missingPreviewCount === 1 ? "" : "s"} missing one
-        </button>
-      )}
-
-      {pending.length > 0 && (
-        <div style={{ marginTop: "0.75rem" }}>
-          {pending.map((item) => (
-            <div key={item.key} style={{ ...styles.card, marginTop: "0.5rem" }}>
-              <p style={styles.dim}>
-                {item.full.name}
-                {item.previewImage ? ` + ${item.previewImage.name} (preview)` : " — no matching preview found"}
-              </p>
-              {!item.previewImage && (
-                <label style={{ ...styles.dim, display: "flex", alignItems: "center", gap: "0.4rem" }}>
-                  <input
-                    type="checkbox"
-                    checked={item.generatePreview}
-                    onChange={(e) => updateItem(item.key, { generatePreview: e.target.checked })}
-                  />
-                  Generate a JPG preview from this file
-                </label>
-              )}
-              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center", marginTop: "0.4rem" }}>
-                <input
-                  style={{ ...styles.input, marginTop: 0, flex: "1 1 160px" }}
-                  value={item.title}
-                  onChange={(e) => updateItem(item.key, { title: e.target.value })}
-                  placeholder="Title"
-                />
-                <input
-                  style={{ ...styles.input, marginTop: 0, width: 120 }}
-                  value={item.price}
-                  onChange={(e) => updateItem(item.key, { price: e.target.value })}
-                  placeholder="Price (e.g. 25.00)"
-                  inputMode="decimal"
-                />
-                <button
-                  type="button"
-                  style={styles.button}
-                  onClick={() => addOne(item)}
-                  disabled={item.status === "creating"}
-                >
-                  {item.status === "creating" ? "Adding…" : "Add"}
-                </button>
-                <button
-                  type="button"
-                  style={{
-                    ...styles.button,
-                    background: "transparent",
-                    border: "1px solid var(--card-line)",
-                    color: "var(--ink-dim)",
-                  }}
-                  onClick={() => removeItem(item.key)}
-                >
-                  Remove
-                </button>
-              </div>
-              {item.error && <p style={{ color: "#e08a8a", fontSize: "0.85rem" }}>{item.error}</p>}
-            </div>
-          ))}
-          <button type="button" style={styles.button} onClick={addAll} disabled={!allReady}>
-            Add all {pending.length} at once
-          </button>
-          {!allReady && (
-            <p style={styles.dim}>Give every piece above a title and a price to enable "Add all."</p>
-          )}
-        </div>
-      )}
-    </div>
+// One product's row -- styled like the real feed card it'll become
+// (.card / .tenant-card-media / .card-kind / .card-body / .card-row /
+// .card-title / .card-price-col / .card-price, all from globals.css,
+// shared verbatim with app/sites/[tenant]/StorefrontFeed.js) so an
+// artist sees roughly what a shopper will see, not an admin form.
+// Collapsed by default -- tap the photo or title row to expand in place,
+// no page navigation, ever (per the "someone should easily do this on
+// their phone" requirement).
+function ProductCard({ product, expanded, onToggle, onChanged, tenantSlug }) {
+  const [title, setTitle] = useState(product.title || "");
+  const [description, setDescription] = useState(product.description || "");
+  const [price, setPrice] = useState(product.price_cents ? (product.price_cents / 100).toFixed(2) : "");
+  const [sizes, setSizes] = useState(
+    Array.isArray(product.details?.sizes) ? product.details.sizes.join(", ") : ""
   );
-}
-
-function ProductRow({ product, onChanged }) {
+  const [shipping, setShipping] = useState(
+    product.details?.shipping_cents ? (product.details.shipping_cents / 100).toFixed(2) : ""
+  );
+  const [crop, setCrop] = useState(product.details?.crop || "natural");
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [dragOverKind, setDragOverKind] = useState(null);
 
-  // Shared by both entry points -- a normal <input type="file"> click/
-  // browse, and a file dragged straight onto the same field. Same
-  // upload, same validation, same status/error handling either way; the
-  // only difference is where the File object came from.
+  // Only re-sync local edit fields from the server copy while this card
+  // is collapsed -- once someone's actively editing an open card, a
+  // background reload (from another card's onChanged) shouldn't wipe out
+  // what they're mid-typing.
+  useEffect(() => {
+    if (expanded) return;
+    setTitle(product.title || "");
+    setDescription(product.description || "");
+    setPrice(product.price_cents ? (product.price_cents / 100).toFixed(2) : "");
+    setSizes(Array.isArray(product.details?.sizes) ? product.details.sizes.join(", ") : "");
+    setShipping(product.details?.shipping_cents ? (product.details.shipping_cents / 100).toFixed(2) : "");
+    setCrop(product.details?.crop || "natural");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product, expanded]);
+
   async function handleFile(kind, file) {
     if (!file) return;
     setStatus(`uploading-${kind}`);
@@ -408,10 +169,9 @@ function ProductRow({ product, onChanged }) {
   }
 
   // Opt-in only -- this button only appears once there's a full-res file
-  // with no preview yet, and nothing calls it automatically. See
-  // lib/imagePreview.js for the actual conversion (TIFF/RAW-adjacent
-  // sources aren't guaranteed to look as good auto-generated as a hand
-  // export -- that's exactly why this stays a choice, not a default).
+  // with no preview yet, and nothing calls it automatically (a
+  // machine-generated preview isn't guaranteed to look as good as one
+  // exported by hand -- see the plan's open verification item).
   async function handleGeneratePreview() {
     setStatus("generating");
     setError("");
@@ -429,11 +189,52 @@ function ProductRow({ product, onChanged }) {
     }
   }
 
-  const fields = fileFieldsFor(product.type);
-  const sizes = product.details?.sizes;
-  const shippingCents = product.details?.shipping_cents;
-  const crop = product.details?.crop;
+  async function save({ active }) {
+    setStatus(active ? "publishing" : "saving");
+    setError("");
+    try {
+      const priceInt = Math.round(Number.parseFloat(price || "0") * 100);
+      const body = {
+        title,
+        description,
+        priceCents: Number.isFinite(priceInt) ? priceInt : 0,
+        active,
+        crop: crop === "natural" ? null : crop,
+        ...(product.type === "physical"
+          ? { sizes, shippingCents: Math.round(Number.parseFloat(shipping || "0") * 100) }
+          : {}),
+      };
+      const res = await fetch(`/api/dashboard/products/${product.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not save.");
+      setStatus("done");
+      onChanged?.();
+    } catch (err) {
+      setStatus("error");
+      setError(err.message);
+    }
+  }
 
+  async function remove() {
+    if (status === "removing") return;
+    setStatus("removing");
+    setError("");
+    try {
+      const res = await fetch(`/api/dashboard/products/${product.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not remove.");
+      onChanged?.();
+    } catch (err) {
+      setStatus("error");
+      setError(err.message);
+    }
+  }
+
+  const fields = fileFieldsFor(product.type);
   const files = product.files || {};
   const hasFull = Boolean(files.full);
   const hasPreview = Boolean(files.preview_image);
@@ -441,81 +242,193 @@ function ProductRow({ product, onChanged }) {
   // Only worth offering for types whose preview_image is meant to come
   // FROM the full-res file (a digital image is its own preview source) --
   // physical/audio's cover photo is a separate shot, not a derivative of
-  // the gated file, so generating "from" it wouldn't make sense.
+  // the gated file.
   const canGeneratePreview = product.type === "digital_image" && hasFull && !hasPreview;
+  const busy = status === "saving" || status === "publishing" || status === "removing";
+  const displayTitle = product.title || "Untitled — tap to finish";
+  const displayPrice = product.price_cents > 0 ? formatPrice(product.price_cents) : "no price yet";
 
   return (
-    <div style={styles.card}>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <strong>{product.title}</strong>
-        <span>{formatPrice(product.price_cents)}</span>
-      </div>
-      <p style={styles.dim}>{TYPE_LABELS[product.type] || product.type}</p>
-      {product.description && <p style={styles.dim}>{product.description}</p>}
-      {product.type === "physical" && (
-        <p style={styles.dim}>
-          {Array.isArray(sizes) && sizes.length > 0 ? `Sizes: ${sizes.join(", ")} — ` : ""}
-          Shipping: {formatPrice(shippingCents || 0)}
-        </p>
-      )}
-      <p style={styles.dim}>
-        Photo: {crop === "square" ? "cropped to square" : crop === "portrait" ? "cropped to portrait" : "natural (no crop)"}
-      </p>
-      {product.type === "digital_image" && (
-        <p style={styles.dim}>
-          Preview: {hasPreview ? (previewIsGenerated ? "generated from your full-res file" : "your own file") : "none yet"}
-        </p>
-      )}
-      <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
-        {fields.map((f) => (
-          <label
-            key={f.kind}
-            style={{ ...styles.dim, ...styles.dropzone(dragOverKind === f.kind) }}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragOverKind(f.kind);
-            }}
-            onDragLeave={() => setDragOverKind((k) => (k === f.kind ? null : k))}
-            onDrop={(e) => handleDrop(f.kind, e)}
-          >
-            {f.label}
-            <input
-              type="file"
-              onChange={(e) => handleFile(f.kind, e.target.files?.[0])}
-            />
-            <span style={{ fontSize: "0.75rem" }}>or drag &amp; drop a file here</span>
-          </label>
-        ))}
-        {canGeneratePreview && (
-          <button
-            type="button"
-            onClick={handleGeneratePreview}
-            disabled={status === "generating"}
-            style={{ ...styles.typeButton(false), whiteSpace: "nowrap" }}
-          >
-            {status === "generating" ? "Generating…" : "Generate preview from full-res file"}
-          </button>
+    <div className="card">
+      <div className="tenant-card-media dash-card-media" onClick={onToggle}>
+        <span className="card-kind">{TYPE_LABELS[product.type] || product.type}</span>
+        {!product.active && <span className="dash-draft-badge">Draft</span>}
+        {hasPreview ? (
+          <img
+            src={`/api/preview?productId=${product.id}&kind=preview_image`}
+            alt={product.title || ""}
+          />
+        ) : (
+          <div className="tenant-card-media-empty" aria-hidden="true" />
         )}
       </div>
-      {status.startsWith("uploading") && <p style={styles.dim}>Uploading…</p>}
-      {status === "generating" && <p style={styles.dim}>Generating a JPG preview from your full-res file…</p>}
-      {status === "done" && <p style={{ ...styles.dim, color: "var(--success)" }}>Saved.</p>}
-      {error && <p style={{ ...styles.dim, color: "#e08a8a" }}>{error}</p>}
+      <div className="card-body">
+        <div className="card-row dash-card-header" onClick={onToggle}>
+          <p className={"card-title dash-card-title" + (!product.title ? " dash-card-title-empty" : "")}>
+            {displayTitle}
+          </p>
+          <div className="card-price-col" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <p className="card-price">{displayPrice}</p>
+            <span className="dash-chevron" aria-hidden="true">
+              {expanded ? "▲" : "▼"}
+            </span>
+          </div>
+        </div>
+
+        {expanded && (
+          <div className="dash-card-expand">
+            <input
+              className="dash-input"
+              placeholder="Title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+            <input
+              className="dash-input"
+              placeholder="Description (optional)"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+            <input
+              className="dash-input"
+              placeholder="Price in dollars (e.g. 25.00)"
+              inputMode="decimal"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+            />
+
+            {product.type === "physical" && (
+              <>
+                <input
+                  className="dash-input"
+                  placeholder="Sizes, comma separated (optional, e.g. S, M, L)"
+                  value={sizes}
+                  onChange={(e) => setSizes(e.target.value)}
+                />
+                <input
+                  className="dash-input"
+                  placeholder="Shipping cost in dollars (e.g. 6.00)"
+                  inputMode="decimal"
+                  value={shipping}
+                  onChange={(e) => setShipping(e.target.value)}
+                />
+              </>
+            )}
+
+            <div>
+              <p style={{ color: "var(--ink-dim)", fontSize: "0.8rem", margin: "0 0 0.4rem" }}>
+                Photo crop — the feed never crops by default:
+              </p>
+              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+                {[
+                  ["natural", "Natural"],
+                  ["square", "Square"],
+                  ["portrait", "Portrait"],
+                ].map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={"dash-type-btn" + (crop === value ? " dash-type-btn-active" : "")}
+                    onClick={() => setCrop(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+              {fields.map((f) => (
+                <label
+                  key={f.kind}
+                  className={"dash-dropzone" + (dragOverKind === f.kind ? " dash-dropzone-active" : "")}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOverKind(f.kind);
+                  }}
+                  onDragLeave={() => setDragOverKind((k) => (k === f.kind ? null : k))}
+                  onDrop={(e) => handleDrop(f.kind, e)}
+                >
+                  {f.label} — {files[f.kind] ? "✓ uploaded, tap to replace" : "tap or drop a file here"}
+                  <input type="file" style={{ display: "block", marginTop: "0.25rem" }} onChange={(e) => handleFile(f.kind, e.target.files?.[0])} />
+                </label>
+              ))}
+              {canGeneratePreview && (
+                <button
+                  type="button"
+                  className="dash-type-btn"
+                  onClick={handleGeneratePreview}
+                  disabled={status === "generating"}
+                >
+                  {status === "generating" ? "Generating…" : "Generate preview from full-res file"}
+                </button>
+              )}
+            </div>
+            {product.type === "digital_image" && hasPreview && (
+              <p style={{ color: "var(--ink-dim)", fontSize: "0.8rem", margin: 0 }}>
+                Preview: {previewIsGenerated ? "generated from your full-res file" : "your own file"}
+              </p>
+            )}
+
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.25rem" }}>
+              {product.active ? (
+                <>
+                  <button type="button" className="dash-btn" onClick={() => save({ active: true })} disabled={busy}>
+                    {status === "publishing" ? "Saving…" : "Save changes"}
+                  </button>
+                  <button
+                    type="button"
+                    className="dash-btn dash-btn-secondary"
+                    onClick={() => save({ active: false })}
+                    disabled={busy}
+                  >
+                    {status === "saving" ? "Saving…" : "Unpublish"}
+                  </button>
+                  {tenantSlug && (
+                    <a
+                      className="dash-btn dash-btn-secondary"
+                      href={`/sites/${tenantSlug}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      View in your live feed ↗
+                    </a>
+                  )}
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="dash-btn dash-btn-secondary"
+                    onClick={() => save({ active: false })}
+                    disabled={busy}
+                  >
+                    {status === "saving" ? "Saving…" : "Save draft"}
+                  </button>
+                  <button type="button" className="dash-btn" onClick={() => save({ active: true })} disabled={busy}>
+                    {status === "publishing" ? "Publishing…" : "Publish to shop"}
+                  </button>
+                </>
+              )}
+              <button type="button" className="dash-btn dash-btn-danger" onClick={remove} disabled={busy}>
+                {status === "removing" ? "Removing…" : "Remove"}
+              </button>
+            </div>
+            {status.startsWith("uploading") && <p style={{ color: "var(--ink-dim)", fontSize: "0.85rem" }}>Uploading…</p>}
+            {error && <p style={{ color: "#e08a8a", fontSize: "0.85rem" }}>{error}</p>}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-export default function ProductManager() {
+export default function ProductManager({ tenant }) {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [type, setType] = useState("digital_image");
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [price, setPrice] = useState("");
-  const [sizes, setSizes] = useState("");
-  const [shipping, setShipping] = useState("");
-  const [crop, setCrop] = useState("natural");
-  const [error, setError] = useState("");
+  const [expandedIds, setExpandedIds] = useState(() => new Set());
+  const [dragOver, setDragOver] = useState(false);
+  const [banner, setBanner] = useState("");
 
   async function loadProducts() {
     const res = await fetch("/api/dashboard/products");
@@ -528,128 +441,193 @@ export default function ProductManager() {
     loadProducts();
   }, []);
 
-  async function handleCreate(e) {
-    e.preventDefault();
-    setError("");
+  function toggle(id) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function expand(id) {
+    setExpandedIds((prev) => new Set(prev).add(id));
+  }
+
+  // Immediate create-on-drop: every group of dropped files is saved as a
+  // real draft product (active:false) right away, with its file(s)
+  // uploaded immediately too -- not held in local/browser-only state.
+  // This is the actual fix for "it's awful to drop photos, have to put
+  // down the phone, and have it all gone": dropping a batch, finishing
+  // only a few, and closing the tab leaves the rest sitting here as
+  // drafts next time, not lost.
+  async function createDraftFromGroup(group) {
     try {
       const res = await fetch("/api/dashboard/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type,
-          title,
-          description,
-          priceCents: Math.round(Number.parseFloat(price || "0") * 100),
-          ...(type === "physical"
-            ? {
-                sizes,
-                shippingCents: Math.round(Number.parseFloat(shipping || "0") * 100),
-              }
-            : {}),
-          ...(crop !== "natural" ? { crop } : {}),
-        }),
+        body: JSON.stringify({ type: "digital_image", title: group.title, priceCents: 0, draft: true }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Something went wrong.");
-      setTitle("");
-      setDescription("");
-      setPrice("");
-      setSizes("");
-      setShipping("");
-      setCrop("natural");
-      loadProducts();
+      if (!res.ok) throw new Error(data.error || "Could not save.");
+      const productId = data.product.id;
+      await uploadProductFile({ productId, kind: "full", file: group.full });
+      if (group.previewImage) {
+        await uploadProductFile({ productId, kind: "preview_image", file: group.previewImage });
+      }
+      expand(productId);
     } catch (err) {
-      setError(err.message);
+      setBanner(`Couldn't save ${group.full.name}: ${err.message}`);
     }
   }
+
+  async function addDroppedFiles(fileList) {
+    if (!fileList || fileList.length === 0) return;
+    const groups = groupDroppedFiles(fileList);
+    for (const group of groups) {
+      // Sequential on purpose -- these all PUT straight to R2; running a
+      // big batch at once would just contend for the same upload bandwidth.
+      // eslint-disable-next-line no-await-in-loop
+      await createDraftFromGroup(group);
+    }
+    loadProducts();
+  }
+
+  // "+ add" buttons: a blank draft of the chosen type, no files yet --
+  // used for audio/physical (which don't fit the image-pairing dropzone
+  // above), or to start an image product without dropping a file first.
+  async function addBlank(type) {
+    try {
+      const res = await fetch("/api/dashboard/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, title: "", priceCents: 0, draft: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not create product.");
+      await loadProducts();
+      expand(data.product.id);
+    } catch (err) {
+      setBanner(err.message);
+    }
+  }
+
+  const drafts = products.filter((p) => !p.active);
+  const published = products.filter((p) => p.active);
 
   return (
     <div>
       <h2>Products</h2>
-      <BulkUpload onDone={loadProducts} />
-      <form onSubmit={handleCreate} style={{ maxWidth: 420, marginTop: "1.5rem" }}>
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          {Object.entries(TYPE_LABELS).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setType(value)}
-              style={styles.typeButton(type === value)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <input
-          style={styles.input}
-          placeholder="Title"
-          required
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-        <input
-          style={styles.input}
-          placeholder="Description (optional)"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-        <input
-          style={styles.input}
-          placeholder="Price in dollars (e.g. 25.00)"
-          required
-          inputMode="decimal"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-        />
-        {type === "physical" && (
-          <>
-            <input
-              style={styles.input}
-              placeholder="Sizes, comma separated (optional, e.g. S, M, L)"
-              value={sizes}
-              onChange={(e) => setSizes(e.target.value)}
-            />
-            <input
-              style={styles.input}
-              placeholder="Shipping cost in dollars (e.g. 6.00)"
-              inputMode="decimal"
-              value={shipping}
-              onChange={(e) => setShipping(e.target.value)}
-            />
-          </>
-        )}
-        <p style={{ ...styles.dim, marginTop: "0.75rem", marginBottom: "0.25rem" }}>
-          Photo crop -- the feed never crops by default, but you can opt this piece into one:
-        </p>
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          {[
-            ["natural", "Natural (no crop)"],
-            ["square", "Square"],
-            ["portrait", "Portrait"],
-          ].map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setCrop(value)}
-              style={styles.typeButton(crop === value)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <button style={styles.button} type="submit">
-          Add product
-        </button>
-        {error && <p style={{ color: "#e08a8a" }}>{error}</p>}
-      </form>
+      <p style={{ color: "var(--ink-dim)", fontSize: "0.85rem" }}>
+        Drop in photos to start new pieces — they&apos;re saved right away as drafts, so it&apos;s
+        safe to only finish some now and come back for the rest later. Tap any piece below to open
+        it up, add a title and price, and publish it to your shop.
+      </p>
 
-      <div style={{ marginTop: "1.5rem" }}>
+      <label
+        className={"dash-main-dropzone" + (dragOver ? " dash-main-dropzone-active" : "")}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          addDroppedFiles(e.dataTransfer.files);
+        }}
+      >
+        Drag &amp; drop image files here, or tap to choose
+        <input
+          type="file"
+          multiple
+          style={{ display: "block", marginTop: "0.5rem" }}
+          onChange={(e) => {
+            addDroppedFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
+      </label>
+
+      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.75rem" }}>
+        {Object.entries(TYPE_LABELS).map(([value, label]) => (
+          <button key={value} type="button" className="dash-type-btn" onClick={() => addBlank(value)}>
+            + {label}
+          </button>
+        ))}
+      </div>
+
+      {banner && (
+        <p style={{ color: "#e08a8a", fontSize: "0.85rem", marginTop: "0.5rem" }}>
+          {banner}{" "}
+          <button
+            type="button"
+            onClick={() => setBanner("")}
+            style={{ background: "none", border: "none", color: "var(--ink-dim)", cursor: "pointer", textDecoration: "underline" }}
+          >
+            dismiss
+          </button>
+        </p>
+      )}
+
+      <div style={{ marginTop: "1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
         {loading ? (
-          <p style={styles.dim}>Loading…</p>
+          <p style={{ color: "var(--ink-dim)" }}>Loading…</p>
         ) : products.length === 0 ? (
-          <p style={styles.dim}>No products yet — add your first one above.</p>
+          <p style={{ color: "var(--ink-dim)" }}>No products yet — drop in a few photos above to get started.</p>
         ) : (
-          products.map((p) => <ProductRow key={p.id} product={p} onChanged={loadProducts} />)
+          <>
+            {drafts.length > 0 && (
+              <>
+                <p
+                  style={{
+                    color: "var(--ink-dim)",
+                    fontSize: "0.8rem",
+                    margin: "0.5rem 0 0",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  Drafts — not visible in your shop yet
+                </p>
+                {drafts.map((p) => (
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    expanded={expandedIds.has(p.id)}
+                    onToggle={() => toggle(p.id)}
+                    onChanged={loadProducts}
+                    tenantSlug={tenant?.slug}
+                  />
+                ))}
+              </>
+            )}
+            {published.length > 0 && (
+              <>
+                <p
+                  style={{
+                    color: "var(--ink-dim)",
+                    fontSize: "0.8rem",
+                    margin: "1rem 0 0",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  Live in your shop
+                </p>
+                {published.map((p) => (
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    expanded={expandedIds.has(p.id)}
+                    onToggle={() => toggle(p.id)}
+                    onChanged={loadProducts}
+                    tenantSlug={tenant?.slug}
+                  />
+                ))}
+              </>
+            )}
+          </>
         )}
       </div>
     </div>

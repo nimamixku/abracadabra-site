@@ -1387,6 +1387,26 @@ textarea {
   display: none;
 }
 
+/* Small visual echo of the real .tryit-clear button (same pill shape,
+   border, uppercase) placed inline in the mobile hint text so "tap
+   clear" points at something that actually looks like the button,
+   instead of naming a button that isn't visible in this copy area at
+   all. Only ever rendered inside .tryit-clear-hint-mobile, which is
+   already mobile-only, so no separate media query needed here. */
+.tryit-clear-chip {
+  display: inline-block;
+  vertical-align: -2px;
+  border: 1px solid var(--card-line);
+  background: var(--card);
+  color: var(--ink-dim);
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin: 0 2px;
+}
+
 @media (max-width: 980px) {
   .tryit-copy-hint {
     text-align: center;
@@ -2123,4 +2143,163 @@ textarea {
   .ambient-tagline {
     text-align: center;
   }
+}
+
+/* ---- dashboard product cards (app/dashboard/ProductManager.js) ---- */
+/* Reuses the real feed's own classes (.card, .tenant-card-media,
+   .card-kind, .card-body, .card-row, .card-title, .card-price-col,
+   .card-price) verbatim -- see StorefrontFeed.js's ProductCard -- so an
+   artist's dashboard row looks like the real card it becomes, not an
+   admin form. Everything below only adds what's specific to this being
+   an editable, collapsible row: a fixed thumbnail crop (the real feed
+   never crops, but a small fixed-height dashboard row needs one), a
+   draft badge, a tap target for expand/collapse, and the edit fields/
+   buttons shown once expanded. None of this touches the storefront's
+   own look. */
+.dash-card-media {
+  cursor: pointer;
+  aspect-ratio: 4 / 5;
+}
+
+.dash-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.dash-draft-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--accent);
+  color: #1a0f24;
+  padding: 5px 10px;
+  border-radius: 100px;
+  font-weight: 700;
+}
+
+.dash-card-header {
+  cursor: pointer;
+}
+
+.dash-card-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-card-title-empty {
+  color: var(--ink-dim);
+  font-weight: 400;
+  font-style: italic;
+}
+
+.dash-chevron {
+  color: var(--ink-dim);
+  font-size: 13px;
+  flex: none;
+}
+
+.dash-card-expand {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--card-line);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.dash-dropzone {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 10px;
+  border: 1px dashed var(--card-line);
+  font-size: 0.8rem;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.dash-dropzone-active {
+  border: 1px dashed var(--accent);
+  background: rgba(160, 120, 255, 0.08);
+}
+
+.dash-main-dropzone {
+  display: block;
+  padding: 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 12px;
+  border: 1px dashed var(--card-line);
+  color: var(--ink-dim);
+  margin-top: 1rem;
+}
+
+.dash-main-dropzone-active {
+  border: 1px dashed var(--accent);
+  background: rgba(160, 120, 255, 0.08);
+}
+
+.dash-btn {
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: #1a0f24;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.dash-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.dash-btn-secondary {
+  background: transparent;
+  border: 1px solid var(--card-line);
+  color: var(--ink);
+}
+
+.dash-btn-danger {
+  background: transparent;
+  border: 1px solid var(--card-line);
+  color: #e08a8a;
+}
+
+.dash-input {
+  width: 100%;
+  padding: 0.6rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid var(--card-line);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.dash-type-btn {
+  padding: 0.5rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid var(--card-line);
+  background: var(--bg);
+  color: var(--ink);
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.dash-type-btn-active {
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #1a0f24;
 }
