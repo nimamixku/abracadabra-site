@@ -128,6 +128,10 @@ function ProductCard({ product, expanded, onToggle, onChanged, tenantSlug }) {
     product.details?.shipping_cents ? (product.details.shipping_cents / 100).toFixed(2) : ""
   );
   const [crop, setCrop] = useState(product.details?.crop || "natural");
+  const CROP_ORDER = ["natural", "square", "portrait"];
+  function cycleCrop() {
+    setCrop((c) => CROP_ORDER[(CROP_ORDER.indexOf(c) + 1) % CROP_ORDER.length]);
+  }
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [dragOverKind, setDragOverKind] = useState(null);
@@ -257,9 +261,29 @@ function ProductCard({ product, expanded, onToggle, onChanged, tenantSlug }) {
           <img
             src={`/api/preview?productId=${product.id}&kind=preview_image`}
             alt={product.title || ""}
+            style={crop === "natural" ? { objectFit: "contain" } : undefined}
           />
         ) : (
           <div className="tenant-card-media-empty" aria-hidden="true" />
+        )}
+        {/* Crop toggle -- only while this card is open for editing, never
+            a permanent fixture on the feed view. One tap cycles
+            natural -> square -> portrait -> natural; saved along with
+            everything else when "Save changes"/"Publish" is tapped below.
+            Preview-only, same as the try-it demo's own crop toggle --
+            never touches the full-res file a buyer downloads. */}
+        {expanded && hasPreview && (
+          <button
+            type="button"
+            className="tryit-crop-toggle dash-crop-toggle"
+            aria-label="Change photo crop"
+            onClick={(e) => {
+              e.stopPropagation();
+              cycleCrop();
+            }}
+          >
+            ⋯
+          </button>
         )}
       </div>
       <div className="card-body">
@@ -315,27 +339,12 @@ function ProductCard({ product, expanded, onToggle, onChanged, tenantSlug }) {
               </>
             )}
 
-            <div>
-              <p style={{ color: "var(--ink-dim)", fontSize: "0.8rem", margin: "0 0 0.4rem" }}>
-                Photo crop — the feed never crops by default:
+            {hasPreview && (
+              <p style={{ color: "var(--ink-dim)", fontSize: "0.8rem", margin: 0 }}>
+                Photo crop: {crop === "natural" ? "natural (no crop)" : crop} — tap the ⋯ on the
+                photo above to change it.
               </p>
-              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-                {[
-                  ["natural", "Natural"],
-                  ["square", "Square"],
-                  ["portrait", "Portrait"],
-                ].map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={"dash-type-btn" + (crop === value ? " dash-type-btn-active" : "")}
-                    onClick={() => setCrop(value)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            )}
 
             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
               {fields.map((f) => (

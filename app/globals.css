@@ -1803,6 +1803,41 @@ textarea {
    second class on the same element) without looking like a form field
    until it's actually focused, so a visitor's dropped photo reads like a
    real feed card first, editable second. */
+/* Crop toggle for the try-it demo (TryItDemo.js) -- deliberately as
+   light and unobtrusive as .expand-hint-wrap below: no background, no
+   border, just a faint character with a text-shadow for legibility over
+   any photo. Only ever rendered while that specific card is being
+   edited (see activeEditId in TryItDemo.js), so it's never a permanent
+   fixture on the card. */
+.tryit-crop-toggle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border: none;
+  background: none;
+  padding: 4px 6px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 18px;
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+  cursor: pointer;
+  z-index: 2;
+}
+
+.tryit-crop-toggle:hover,
+.tryit-crop-toggle:focus-visible {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Dashboard reuses the same toggle (ProductManager.js), but top-right is
+   already taken there by the draft badge (.dash-draft-badge) -- move it
+   to the opposite corner so the two never overlap on an expanded draft. */
+.dash-crop-toggle {
+  top: auto;
+  right: 10px;
+  bottom: 10px;
+}
+
 .tryit-title-input,
 .tryit-price-input {
   border: none;

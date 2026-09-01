@@ -31,6 +31,14 @@ const DEMO_TITLES = [
 const DEMO_PRICE_CENTS = 2800;
 const SLOT_COUNT = 5;
 
+// Crop only ever changes how a piece's PREVIEW shows in the feed -- never
+// the actual file a buyer downloads, and never the full uncropped view
+// behind "expand" either (that always shows the real preview image as-is,
+// same as the real storefront's lightbox). Every new photo starts at
+// "natural" (no crop, null here) -- an artist opts into a crop, it's
+// never forced by default.
+const CROP_CYCLE = [null, "square", "portrait"];
+
 const AMBIENT_SAMPLE_POOL = [
   "flowers-and-roof.jpg",
   "fuchsia.jpg",
@@ -108,7 +116,13 @@ function shuffleArray(arr) {
 }
 
 function emptySlots(count) {
-  return Array.from({ length: count }, (_, i) => ({ id: i, url: null, title: null, priceInput: "" }));
+  return Array.from({ length: count }, (_, i) => ({
+    id: i,
+    url: null,
+    title: null,
+    priceInput: "",
+    crop: null,
+  }));
 }
 
 export default function TryItDemo({ variant = "interactive" }) {
@@ -122,6 +136,11 @@ export default function TryItDemo({ variant = "interactive" }) {
   const [activeId, setActiveId] = useState(null);
   const [themeBg, setThemeBg] = useState(DEFAULT_THEME_BG);
   const [themeInk, setThemeInk] = useState(DEFAULT_THEME_INK);
+  // Which card is currently being edited (title/price field focused) --
+  // the crop toggle only shows for that one card, and disappears again
+  // once editing moves elsewhere. Not the same as expandedId (the
+  // lightbox), and never set for the ambient loop.
+  const [activeEditId, setActiveEditId] = useState(null);
   const fileInputRef = useRef(null);
   const pendingIdRef = useRef(null);
   const screenRef = useRef(null);
@@ -259,16 +278,52 @@ export default function TryItDemo({ variant = "interactive" }) {
       if (isAmbient || id == null || !file || !file.type.startsWith("image/")) return;
       const url = URL.createObjectURL(file);
       const title = titleFromFilename(file.name);
-      setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, url, title, priceInput: "" } : s)));
+      setSlots((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, url, title, priceInput: "", crop: null } : s))
+      );
     },
     [isAmbient]
   );
+
+  // Cycles a piece's own preview crop -- natural -> square -> portrait ->
+  // natural. A tap-to-cycle instead of a menu, since there are only three
+  // options and this is meant to be as unobtrusive as possible (see the
+  // crop toggle button below, which only shows while this specific card
+  // is actively being edited).
+  function cycleCrop(id) {
+    setSlots((prev) =>
+      prev.map((s) => {
+        if (s.id !== id) return s;
+        const idx = CROP_CYCLE.indexOf(s.crop ?? null);
+        const next = CROP_CYCLE[(idx + 1) % CROP_CYCLE.length];
+        return { ...s, crop: next };
+      })
+    );
+  }
 
   // Editable title/price, typed right on the card -- see titleFromFilename
   // above for why title starts pre-filled from the dropped file's own
   // name while price starts blank for the visitor to set themselves.
   function updateSlotField(id, field, value) {
     setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
+  }
+
+  // Marks a card as "being edited" while focus is anywhere inside its
+  // title/price fields -- the crop toggle only shows during that window.
+  // Blur checks (a tick later, once the browser has settled on wherever
+  // focus actually landed) whether focus moved outside this card entirely
+  // before clearing, so tabbing between the title and price fields on the
+  // SAME card doesn't make the toggle flicker off and back on.
+  function handleCardFocus(id) {
+    setActiveEditId(id);
+  }
+  function handleCardBlur(id) {
+    requestAnimationFrame(() => {
+      const cardEl = cardRefs.current[id];
+      if (!cardEl || !cardEl.contains(document.activeElement)) {
+        setActiveEditId((cur) => (cur === id ? null : cur));
+      }
+    });
   }
 
   function handlePhoneDrop(e) {
@@ -405,7 +460,17 @@ export default function TryItDemo({ variant = "interactive" }) {
                 >
                   <span className="card-kind">photo</span>
                   {slot.url ? (
-                    <img src={slot.url} alt="" />
+                    <img
+                      src={slot.url}
+                      alt=""
+                      style={
+                        slot.crop === "square"
+                          ? { aspectRatio: "1 / 1", objectFit: "cover" }
+                          : slot.crop === "portrait"
+                          ? { aspectRatio: "4 / 5", objectFit: "cover" }
+                          : undefined
+                      }
+                    />
                   ) : (
                     <div className="tenant-card-media-empty tryit-card-empty" aria-hidden="true">
                       {!isAmbient && <span className="tryit-card-plus">+</span>}
@@ -431,36 +496,73 @@ export default function TryItDemo({ variant = "interactive" }) {
                       <span className="expand-label">expand</span>
                     </button>
                   )}
+                  {/* Crop toggle -- only while this specific card is being
+                      edited (title/price focused), never a permanent
+                      fixture on the card. One tap cycles natural -> square
+                      -> portrait -> natural; the photo's own shape
+                      changing is the feedback, no label needed. Preview
+                      only -- never touches the full-res file a buyer
+                      downloads, and "expand" always shows the real,
+                      uncropped preview regardless of this setting. */}
+                  {!isAmbient && slot.url && activeEditId === slot.id && (
+                    <button
+                      type="button"
+                      className="tryit-crop-toggle"
+                      aria-label="Change photo crop"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        cycleCrop(slot.id);
+                      }}
+                    >
+                      ⋯
+                    </button>
+                  )}
                 </div>
                 {slot.url && (
-                  <div className="card-body">
+                  <div
+                    className="card-body"
+                    onFocus={() => !isAmbient && handleCardFocus(slot.id)}
+                    onBlur={() => !isAmbient && handleCardBlur(slot.id)}
+                  >
                     <div className="card-row">
-                      {/* A real title/price, typed right here -- not a
-                          fixed template -- so this simulates the actual
-                          posting motion (drop a file, add a caption and
-                          a price) as closely as the real dashboard does,
-                          not just a picture of what the feed looks like. */}
-                      <input
-                        className="card-title tryit-title-input"
-                        ref={(el) => {
-                          titleInputRefs.current[slot.id] = el;
-                        }}
-                        value={slot.title ?? ""}
-                        onChange={(e) => updateSlotField(slot.id, "title", e.target.value)}
-                        placeholder="Add a title"
-                        maxLength={60}
-                        aria-label="Title"
-                      />
-                      <div className="card-price-col">
-                        <input
-                          className="card-price tryit-price-input"
-                          value={slot.priceInput ?? ""}
-                          onChange={(e) => updateSlotField(slot.id, "priceInput", e.target.value)}
-                          placeholder={formatPrice(DEMO_PRICE_CENTS)}
-                          inputMode="decimal"
-                          aria-label="Price"
-                        />
-                      </div>
+                      {/* Editable title/price only on the real interactive
+                          demo -- the passive ambient loop (isAmbient) resets
+                          its own slots on a timer, so it must stay
+                          non-interactive plain text like a real card,
+                          never an <input>, or anything typed into it would
+                          get wiped out a couple seconds later by the loop. */}
+                      {isAmbient ? (
+                        <>
+                          <p className="card-title">{slot.title}</p>
+                          <div className="card-price-col">
+                            <p className="card-price">{formatPrice(DEMO_PRICE_CENTS)}</p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <input
+                            className="card-title tryit-title-input"
+                            ref={(el) => {
+                              titleInputRefs.current[slot.id] = el;
+                            }}
+                            value={slot.title ?? ""}
+                            onChange={(e) => updateSlotField(slot.id, "title", e.target.value)}
+                            placeholder="Add a title"
+                            maxLength={60}
+                            aria-label="Title"
+                          />
+                          <div className="card-price-col">
+                            <input
+                              className="card-price tryit-price-input"
+                              value={slot.priceInput ?? ""}
+                              onChange={(e) => updateSlotField(slot.id, "priceInput", e.target.value)}
+                              placeholder={formatPrice(DEMO_PRICE_CENTS)}
+                              inputMode="decimal"
+                              aria-label="Price"
+                            />
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
