@@ -40,10 +40,19 @@ a {
 }
 
 /* ---- masthead ---- */
-.masthead {
+/* Sticky lives on the wrapper, not .masthead itself, so the marquee
+   right below it (previously plain normal-flow -- it would scroll out
+   from under the header instead of staying pinned with it) rides along
+   as one sticky unit with the header on both desktop and mobile.
+   Presentation is unchanged -- same two pieces, same look, just moving
+   together now instead of the marquee scrolling away on its own. */
+.masthead-group {
   position: sticky;
   top: 0;
   z-index: 20;
+}
+
+.masthead {
   background: rgba(11, 11, 13, 0.85);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--card-line);
@@ -1205,6 +1214,39 @@ textarea {
   text-align: center;
 }
 
+/* This block moved up to sit right under the hero -- just a little
+   breathing room from the hero above it, not the full section gap
+   every other block on the page gets. */
+.marketing-cta-section-tight {
+  padding-top: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1.5rem;
+  text-align: left;
+}
+
+/* Match the try-it tagline's size right above it in the hero
+   ("A free look at your own work...") rather than the smaller default
+   .marketing-sub size used everywhere else on the page. No flex-grow --
+   it takes only the room its own text needs, so the button sits right
+   after it (in line) instead of getting pushed to the far edge of the
+   row; once the row is too narrow to fit both, the button wraps below
+   it instead of squeezing everything onto one line. */
+.marketing-cta-section-tight .marketing-sub {
+  font-size: clamp(1.1rem, 1.9vw, 1.3rem);
+  font-weight: 500;
+  margin: 0;
+  flex: 0 1 640px;
+}
+
+.marketing-cta-section-tight .marketing-cta-primary {
+  flex-shrink: 0;
+  padding: 1.1rem 2.2rem;
+  font-size: 1.15rem;
+}
+
 .marketing-footer {
   text-align: center;
   padding: 2rem 1.5rem 3rem;
@@ -1246,18 +1288,41 @@ textarea {
 /* Header for the try-it panel itself -- sits above the tagline, inside
    the same boxed frame, so "no account, no sign-up" reads as describing
    the trial below it rather than the platform overall. */
+/* Same gradient treatment as the ABRACADABRA wordmark itself (see
+   .brand) -- only this heading, nothing else on the page. */
 .tryit-section-heading {
   margin: 0;
   text-align: left;
   font-size: clamp(1.5rem, 2.6vw, 2rem);
+  background: linear-gradient(90deg, var(--ink), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 /* Its own boxed panel so it reads as a separate, contained object next
    to the copy column instead of floating loose in the same space --
    sized to actually use the panel's full width rather than leaving the
    phone stranded in a mostly-empty box. */
+/* Fuchsia-shaded instead of flat black/gray -- same radial-glow + graded
+   linear-gradient technique as the ABRACADABRA wordmark treatment (see
+   .brand above), just shifted from purple to fuchsia. */
+/* Back to the original flat dark card -- but a slow pulse between a
+   slightly lighter and slightly darker black so the box still reads as
+   "alive" without recoloring it. */
+@keyframes heroDemoPulse {
+  0%,
+  100% {
+    background-color: #101012;
+  }
+  50% {
+    background-color: #1f1f24;
+  }
+}
+
 .marketing-hero-demo {
-  background: var(--card);
+  background-color: #17171b;
+  animation: heroDemoPulse 7s ease-in-out infinite;
   border: 1px solid var(--card-line);
   border-radius: 32px;
   padding: 2.5rem;
@@ -1324,6 +1389,7 @@ textarea {
 .marketing-hero-split .marketing-sub {
   margin-left: 0;
   margin-right: 0;
+  line-height: 2;
 }
 
 .marketing-hero-split .marketing-cta-row {
@@ -1348,6 +1414,7 @@ textarea {
   }
   .marketing-hero-demo {
     flex-direction: column;
+    justify-content: center;
     padding: 2.5rem 1.5rem 1.75rem;
   }
   .tryit-copy-col {
@@ -1362,9 +1429,117 @@ textarea {
 
 .tryit-wrap {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
+  gap: 1.1rem;
   position: relative;
   flex-shrink: 0;
+}
+
+/* Same "background + text color, nothing else" swatch pair as the real
+   dashboard's ThemePicker (app/dashboard/ThemePicker.js), just shrunk
+   and self-contained here -- this is a live preview only, never saved
+   anywhere, matching the rest of the try-it demo's "nothing dropped
+   here is ever uploaded" rule. Only shown on the interactive variant,
+   never the passive ambient loop. */
+.tryit-theme-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  /* Now rendered after the phone itself (see TryItDemo.js) -- below the
+     copy column's text and right under the phone's own bottom edge,
+     rather than above the phone where it used to read as overlapping
+     the copy column's instructions. .tryit-wrap's own gap already
+     provides clearance from the phone, so no extra margin needed here. */
+  margin-top: 0;
+}
+
+.tryit-theme-label {
+  font-size: 0.8rem;
+  color: var(--ink-dim);
+  letter-spacing: 0.02em;
+}
+
+.tryit-theme-swatches {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+}
+
+.tryit-swatch-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.tryit-swatch-caption {
+  font-size: 0.72rem;
+  color: var(--ink-dim);
+  text-align: center;
+}
+
+.tryit-swatch {
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  border: 1px solid var(--card-line);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: block;
+}
+
+.tryit-swatch input[type="color"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.tryit-swatch-ink {
+  background: #1c1c20;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 8px;
+}
+
+.tryit-swatch-ink-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.tryit-swatch-ink-lines span {
+  height: 4px;
+  border-radius: 2px;
+  width: 100%;
+  display: block;
+}
+
+.tryit-swatch-ink-lines span:nth-child(2) {
+  width: 65%;
+}
+
+.tryit-swatch-ink-lines span:nth-child(3) {
+  width: 80%;
+}
+
+.tryit-theme-reset {
+  font-size: 0.75rem;
+  color: var(--ink-dim);
+  background: transparent;
+  border: 1px solid var(--card-line);
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  cursor: pointer;
 }
 
 .tryit-phone {
@@ -1794,7 +1969,7 @@ textarea {
   gap: 2.5rem;
   max-width: 1120px;
   margin: 0 auto;
-  padding: 1.5rem 1.5rem 2.5rem;
+  padding: 3rem 1.5rem 2.5rem;
 }
 
 .ambient-left {

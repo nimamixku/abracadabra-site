@@ -16,6 +16,28 @@ export async function GET(req) {
     "select id, type, title, description, price_cents, details, active, created_at from products where tenant_id = $1 order by sort_order asc, id desc",
     [tenant.id]
   );
+
+  // Dashboard-only view (the owner looking at their own shop), so unlike
+  // the public storefront's getStorefrontProducts there's no reason to
+  // withhold the "full" file's key here -- ProductManager needs to know
+  // which kinds already exist per product (e.g. to show "Generate
+  // preview" only when there's a full file and no preview yet).
+  if (rows.length > 0) {
+    const ids = rows.map((p) => p.id);
+    const { rows: files } = await query(
+      "select product_id, kind, r2_key, content_type from product_files where product_id = any($1::bigint[])",
+      [ids]
+    );
+    const filesByProduct = new Map();
+    for (const f of files) {
+      if (!filesByProduct.has(f.product_id)) filesByProduct.set(f.product_id, {});
+      filesByProduct.get(f.product_id)[f.kind] = f;
+    }
+    for (const p of rows) {
+      p.files = filesByProduct.get(p.id) || {};
+    }
+  }
+
   return NextResponse.json({ products: rows });
 }
 

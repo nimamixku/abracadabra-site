@@ -1,0 +1,32 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+(function loadEnvLocal() {
+  try {
+    const text = readFileSync(path.join(process.cwd(), ".env.local"), "utf8");
+    for (const line of text.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eq = trimmed.indexOf("=");
+      if (eq === -1) continue;
+      const key = trimmed.slice(0, eq).trim();
+      let value = trimmed.slice(eq + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      if (!(key in process.env)) process.env[key] = value;
+    }
+  } catch {}
+})();
+import pg from "pg";
+const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+await client.connect();
+const tenants = await client.query("select id, slug, shop_name, stripe_connect_status, stripe_connect_account_id from tenants");
+console.log("TENANTS:", JSON.stringify(tenants.rows, null, 2));
+for (const t of tenants.rows) {
+  const products = await client.query(
+    "select id, type, title, price_cents, active from products where tenant_id = $1",
+    [t.id]
+  );
+  console.log(`Products for ${t.slug}:`, JSON.stringify(products.rows, null, 2));
+}
+await client.end();

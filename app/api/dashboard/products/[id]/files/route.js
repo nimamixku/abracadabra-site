@@ -25,10 +25,11 @@ export async function POST(req, { params }) {
   }
 
   const { rows: productRows } = await query(
-    "select id from products where id = $1 and tenant_id = $2",
+    "select id, details from products where id = $1 and tenant_id = $2",
     [productId, tenant.id]
   );
-  if (!productRows[0]) {
+  const product = productRows[0];
+  if (!product) {
     return NextResponse.json({ error: "Unknown product." }, { status: 404 });
   }
 
@@ -41,6 +42,15 @@ export async function POST(req, { params }) {
      values ($1, $2, $3, $4) returning id, kind, r2_key, content_type`,
     [productId, kind, key, contentType]
   );
+
+  // A manually-uploaded preview_image means this product's preview is
+  // the artist's own file again, not a generated one -- clear the flag
+  // /api/dashboard/products/[id]/generate-preview sets, same "always
+  // reflects the current truth" instinct as that route's own comment.
+  if (kind === "preview_image" && product.details?.preview_generated) {
+    const details = { ...product.details, preview_generated: false };
+    await query("update products set details = $1 where id = $2", [JSON.stringify(details), productId]);
+  }
 
   return NextResponse.json({ ok: true, file: rows[0] });
 }

@@ -156,6 +156,11 @@ function groupDroppedFiles(fileList) {
       price: "",
       full: sorted[0],
       previewImage: sorted.length > 1 ? sorted[1] : null,
+      // Only meaningful when there's no matched previewImage -- opt-in,
+      // defaults off, per-item or via the "generate for all of these"
+      // checkbox below (which itself never locks anything: any single
+      // piece can still be flipped back individually afterward).
+      generatePreview: false,
       status: "idle",
       error: "",
     };
@@ -201,6 +206,19 @@ function BulkUpload({ onDone }) {
       await uploadProductFile({ productId, kind: "full", file: item.full });
       if (item.previewImage) {
         await uploadProductFile({ productId, kind: "preview_image", file: item.previewImage });
+      } else if (item.generatePreview) {
+        // Opt-in, per this specific piece -- same endpoint and same
+        // "artist chose this" reasoning as the single-product "Generate
+        // preview" button in ProductRow. A failure here doesn't undo the
+        // product itself; it just leaves this one without a preview yet,
+        // same as if the checkbox had been left off.
+        const genRes = await fetch(`/api/dashboard/products/${productId}/generate-preview`, {
+          method: "POST",
+        });
+        if (!genRes.ok) {
+          const genData = await genRes.json().catch(() => ({}));
+          console.error("Bulk add: preview generation failed for", item.full.name, genData.error);
+        }
       }
       removeItem(item.key);
       onDone();
@@ -222,6 +240,19 @@ function BulkUpload({ onDone }) {
       await addOne(item);
     }
   }
+
+  // The "for all of these" shortcut from the plan -- a one-time bulk
+  // apply, not a permanent binding: it flips every currently-pending
+  // piece with no matched preview to opted-in, but each one's own
+  // checkbox still works normally afterward, so a piece can be flipped
+  // back off individually without affecting the others.
+  function generateAllMissing() {
+    setPending((prev) =>
+      prev.map((item) => (item.previewImage ? item : { ...item, generatePreview: true }))
+    );
+  }
+
+  const missingPreviewCount = pending.filter((item) => !item.previewImage).length;
 
   const allReady =
     pending.length > 0 &&
@@ -268,17 +299,35 @@ function BulkUpload({ onDone }) {
         />
       </label>
 
+      {missingPreviewCount > 0 && (
+        <button
+          type="button"
+          onClick={generateAllMissing}
+          style={{ ...styles.typeButton(false), marginTop: "0.75rem" }}
+        >
+          Generate previews for all {missingPreviewCount} piece{missingPreviewCount === 1 ? "" : "s"} missing one
+        </button>
+      )}
+
       {pending.length > 0 && (
         <div style={{ marginTop: "0.75rem" }}>
           {pending.map((item) => (
             <div key={item.key} style={{ ...styles.card, marginTop: "0.5rem" }}>
               <p style={styles.dim}>
                 {item.full.name}
-                {item.previewImage
-                  ? ` + ${item.previewImage.name} (preview)`
-                  : " — no matching preview found; add one after this is created"}
+                {item.previewImage ? ` + ${item.previewImage.name} (preview)` : " — no matching preview found"}
               </p>
-              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
+              {!item.previewImage && (
+                <label style={{ ...styles.dim, display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                  <input
+                    type="checkbox"
+                    checked={item.generatePreview}
+                    onChange={(e) => updateItem(item.key, { generatePreview: e.target.checked })}
+                  />
+                  Generate a JPG preview from this file
+                </label>
+              )}
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center", marginTop: "0.4rem" }}>
                 <input
                   style={{ ...styles.input, marginTop: 0, flex: "1 1 160px" }}
                   value={item.title}
@@ -328,7 +377,7 @@ function BulkUpload({ onDone }) {
   );
 }
 
-function ProductRow({ product }) {
+function ProductRow({ product, onChanged }) {
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [dragOverKind, setDragOverKind] = useState(null);
@@ -344,6 +393,7 @@ function ProductRow({ product }) {
     try {
       await uploadProductFile({ productId: product.id, kind, file });
       setStatus("done");
+      onChanged?.();
     } catch (err) {
       setStatus("error");
       setError(err.message);
@@ -357,10 +407,42 @@ function ProductRow({ product }) {
     handleFile(kind, e.dataTransfer.files?.[0]);
   }
 
+  // Opt-in only -- this button only appears once there's a full-res file
+  // with no preview yet, and nothing calls it automatically. See
+  // lib/imagePreview.js for the actual conversion (TIFF/RAW-adjacent
+  // sources aren't guaranteed to look as good auto-generated as a hand
+  // export -- that's exactly why this stays a choice, not a default).
+  async function handleGeneratePreview() {
+    setStatus("generating");
+    setError("");
+    try {
+      const res = await fetch(`/api/dashboard/products/${product.id}/generate-preview`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not generate a preview.");
+      setStatus("done");
+      onChanged?.();
+    } catch (err) {
+      setStatus("error");
+      setError(err.message);
+    }
+  }
+
   const fields = fileFieldsFor(product.type);
   const sizes = product.details?.sizes;
   const shippingCents = product.details?.shipping_cents;
   const crop = product.details?.crop;
+
+  const files = product.files || {};
+  const hasFull = Boolean(files.full);
+  const hasPreview = Boolean(files.preview_image);
+  const previewIsGenerated = Boolean(product.details?.preview_generated);
+  // Only worth offering for types whose preview_image is meant to come
+  // FROM the full-res file (a digital image is its own preview source) --
+  // physical/audio's cover photo is a separate shot, not a derivative of
+  // the gated file, so generating "from" it wouldn't make sense.
+  const canGeneratePreview = product.type === "digital_image" && hasFull && !hasPreview;
 
   return (
     <div style={styles.card}>
@@ -379,7 +461,12 @@ function ProductRow({ product }) {
       <p style={styles.dim}>
         Photo: {crop === "square" ? "cropped to square" : crop === "portrait" ? "cropped to portrait" : "natural (no crop)"}
       </p>
-      <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
+      {product.type === "digital_image" && (
+        <p style={styles.dim}>
+          Preview: {hasPreview ? (previewIsGenerated ? "generated from your full-res file" : "your own file") : "none yet"}
+        </p>
+      )}
+      <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
         {fields.map((f) => (
           <label
             key={f.kind}
@@ -399,8 +486,19 @@ function ProductRow({ product }) {
             <span style={{ fontSize: "0.75rem" }}>or drag &amp; drop a file here</span>
           </label>
         ))}
+        {canGeneratePreview && (
+          <button
+            type="button"
+            onClick={handleGeneratePreview}
+            disabled={status === "generating"}
+            style={{ ...styles.typeButton(false), whiteSpace: "nowrap" }}
+          >
+            {status === "generating" ? "Generating…" : "Generate preview from full-res file"}
+          </button>
+        )}
       </div>
       {status.startsWith("uploading") && <p style={styles.dim}>Uploading…</p>}
+      {status === "generating" && <p style={styles.dim}>Generating a JPG preview from your full-res file…</p>}
       {status === "done" && <p style={{ ...styles.dim, color: "var(--success)" }}>Saved.</p>}
       {error && <p style={{ ...styles.dim, color: "#e08a8a" }}>{error}</p>}
     </div>
@@ -551,7 +649,7 @@ export default function ProductManager() {
         ) : products.length === 0 ? (
           <p style={styles.dim}>No products yet — add your first one above.</p>
         ) : (
-          products.map((p) => <ProductRow key={p.id} product={p} />)
+          products.map((p) => <ProductRow key={p.id} product={p} onChanged={loadProducts} />)
         )}
       </div>
     </div>

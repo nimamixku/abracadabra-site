@@ -11,13 +11,15 @@ export const metadata = {
 export default function MarketingHome() {
   return (
     <main className="marketing">
-      <div className="masthead">
-        <span className="brand">
-          ABRACADABRA <span className="brand-sub">shop</span>
-        </span>
-      </div>
+      <div className="masthead-group">
+        <div className="masthead">
+          <span className="brand">
+            ABRACADABRA <span className="brand-sub">shop</span>
+          </span>
+        </div>
 
-      <MarketingMarquee />
+        <MarketingMarquee />
+      </div>
 
       <section className="marketing-hero marketing-hero-split">
         <div className="marketing-hero-demo">
@@ -43,15 +45,21 @@ export default function MarketingHome() {
           <p className="marketing-sub">
             Just easier — no cart, no checkout, and your entire catalog
             stays on display, not just what's newest. No forced cropping, no
-            quality loss, ever. Pick your own background and text color, and
-            get paid straight to your account on every sale.
+            quality loss, ever. Drag and drop, or bulk upload up to 90
+            files. Pick your own background and text color, and get paid
+            straight to your account on every sale.
           </p>
-          <div className="marketing-cta-row">
-            <a className="marketing-cta-primary" href="/login">
-              Create your shop
-            </a>
-          </div>
         </div>
+      </section>
+
+      <section className="marketing-section marketing-cta-section marketing-cta-section-tight">
+        <p className="marketing-sub">
+          You just tried it. Creating the real thing takes about as long —
+          drop in your actual catalog and it's live in minutes.
+        </p>
+        <a className="marketing-cta-primary" href="/login">
+          Create your shop
+        </a>
       </section>
 
       <section className="ambient-section">

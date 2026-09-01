@@ -57,6 +57,14 @@ const AMBIENT_DROP_MS = 650;
 const AMBIENT_HOLD_MS = 2600;
 const AMBIENT_CLEAR_MS = 500;
 
+// Same two knobs as the real dashboard's ThemePicker -- background and
+// text color, nothing else -- so a visitor can try that part of running
+// a shop too, not just dropping in photos. Preview-only: lives in this
+// component's own state, never sent anywhere, gone the moment the tab
+// closes, same as the photos themselves.
+const DEFAULT_THEME_BG = "#0b0b0d";
+const DEFAULT_THEME_INK = "#f3f2ee";
+
 function formatPrice(cents) {
   return `$${(cents / 100).toFixed(2)}`;
 }
@@ -83,6 +91,8 @@ export default function TryItDemo({ variant = "interactive" }) {
   const [buyHint, setBuyHint] = useState(false);
   const [dragOverId, setDragOverId] = useState(null);
   const [activeId, setActiveId] = useState(null);
+  const [themeBg, setThemeBg] = useState(DEFAULT_THEME_BG);
+  const [themeInk, setThemeInk] = useState(DEFAULT_THEME_INK);
   const fileInputRef = useRef(null);
   const pendingIdRef = useRef(null);
   const screenRef = useRef(null);
@@ -267,8 +277,17 @@ export default function TryItDemo({ variant = "interactive" }) {
   }
 
   const expandedSlot = !isAmbient && expandedId != null ? slots.find((s) => s.id === expandedId) : null;
+  // The interactive demo's floating shuffle/buy chrome should read as
+  // "always active" the same as the real storefront, not just appear
+  // once a photo's been dropped in -- an empty phone with no floating
+  // widgets at all looks broken/unfinished rather than like a real shop
+  // waiting for content. The ambient loop keeps its original hasAny-gated
+  // behavior (nothing floats until it actually drops a photo in).
+  const showChrome = !isAmbient || hasAny;
   const activeSlot =
-    slots.find((s) => s.id === activeId && s.url) || filled[filled.length - 1] || null;
+    slots.find((s) => s.id === activeId && s.url) ||
+    filled[filled.length - 1] ||
+    (!isAmbient ? { id: -1, url: null, title: DEMO_TITLES[0] } : null);
 
   return (
     <div className={`tryit-wrap${isAmbient ? " tryit-wrap-ambient" : ""}`} aria-hidden={isAmbient || undefined}>
@@ -289,7 +308,15 @@ export default function TryItDemo({ variant = "interactive" }) {
           </>
         )}
 
-        <div className="tryit-screen" ref={screenRef}>
+        <div
+          className="tryit-screen"
+          ref={screenRef}
+          style={
+            !isAmbient
+              ? { background: themeBg, color: themeInk, "--bg": themeBg, "--ink": themeInk }
+              : undefined
+          }
+        >
           <div className="feed tryit-feed">
             {slots.map((slot) => (
               <div
@@ -360,7 +387,7 @@ export default function TryItDemo({ variant = "interactive" }) {
           {hasAny && !isAmbient && <p className="loading-more">keep scrolling — it reshuffles</p>}
         </div>
 
-        {hasAny && (
+        {showChrome && (
           <button
             type="button"
             className="floating-shuffle"
@@ -372,7 +399,7 @@ export default function TryItDemo({ variant = "interactive" }) {
           </button>
         )}
 
-        {activeSlot && (
+        {showChrome && activeSlot && (
           <div
             className="floating-buy-wrap tryit-floating-buy"
             onClick={() => !isAmbient && setBuyHint(true)}
@@ -402,6 +429,56 @@ export default function TryItDemo({ variant = "interactive" }) {
           />
         )}
       </div>
+
+      {/* Below the copy area and right under the phone, not above it --
+          this sits below both the "Try it before you buy it" text block
+          and the phone itself, close to the phone's own bottom edge. */}
+      {!isAmbient && (
+        <div className="tryit-theme-row">
+          <span className="tryit-theme-label">try your colors too</span>
+          <div className="tryit-theme-swatches">
+            <div className="tryit-swatch-col">
+              <label className="tryit-swatch tryit-swatch-bg" style={{ background: themeBg }}>
+                <input
+                  type="color"
+                  value={themeBg}
+                  onChange={(e) => setThemeBg(e.target.value)}
+                  aria-label="Preview background color"
+                />
+              </label>
+              <span className="tryit-swatch-caption">change background</span>
+            </div>
+            <div className="tryit-swatch-col">
+              <label className="tryit-swatch tryit-swatch-ink">
+                <span className="tryit-swatch-ink-lines">
+                  <span style={{ background: themeInk }} />
+                  <span style={{ background: themeInk }} />
+                  <span style={{ background: themeInk }} />
+                </span>
+                <input
+                  type="color"
+                  value={themeInk}
+                  onChange={(e) => setThemeInk(e.target.value)}
+                  aria-label="Preview text color"
+                />
+              </label>
+              <span className="tryit-swatch-caption">change text</span>
+            </div>
+            {(themeBg !== DEFAULT_THEME_BG || themeInk !== DEFAULT_THEME_INK) && (
+              <button
+                type="button"
+                className="tryit-theme-reset"
+                onClick={() => {
+                  setThemeBg(DEFAULT_THEME_BG);
+                  setThemeInk(DEFAULT_THEME_INK);
+                }}
+              >
+                reset
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {expandedSlot && (
         <div className="lightbox-overlay" onClick={() => setExpandedId(null)}>
