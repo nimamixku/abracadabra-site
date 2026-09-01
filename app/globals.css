@@ -30,16 +30,6 @@ html {
   font-size: 12.8px;
 }
 
-/* Desktop only, on top of the shared 12.8px above -- a further uniform
-   15% cut (still just this one multiplier, so every ratio between
-   elements stays exactly the same, nothing individually resized).
-   Mobile is untouched by this rule. */
-@media (min-width: 981px) {
-  html {
-    font-size: 10.88px;
-  }
-}
-
 body {
   background: var(--bg);
   color: var(--ink);
