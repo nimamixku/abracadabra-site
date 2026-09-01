@@ -21,6 +21,15 @@ body {
   margin: 0;
 }
 
+/* Root scale for every rem-based size on the page (nearly everything --
+   font sizes, gaps, padding) -- was the unstyled browser default (16px).
+   80% of that default, exactly, so the whole page reads at 80% of what
+   "100% view" looked like -- a uniform 20% reduction, everywhere, in
+   one place. */
+html {
+  font-size: 12.8px;
+}
+
 body {
   background: var(--bg);
   color: var(--ink);
@@ -1325,7 +1334,14 @@ textarea {
   animation: heroDemoPulse 7s ease-in-out infinite;
   border: 1px solid var(--card-line);
   border-radius: 32px;
-  padding: 2.5rem;
+  /* Extra top padding specifically -- the "drag & drop" floating hint
+     sits 34px ABOVE the phone itself (.tryit-floating-hint's negative
+     top offset), so uniform 2.5rem padding left almost no real
+     clearance above it (and after the root font-size dropped to 80%,
+     none at all -- it was reading as touching the box's top edge).
+     Bottom gets a little extra too, for the same breathing room below
+     the swatches at the other end of this box. */
+  padding: 4.5rem 2.5rem 3.25rem;
   display: flex;
   align-items: center;
   gap: 2rem;
@@ -1415,7 +1431,14 @@ textarea {
   .marketing-hero-demo {
     flex-direction: column;
     justify-content: center;
-    padding: 2.5rem 1.5rem 1.75rem;
+    /* justify-content alone did nothing -- there's no flex slack to
+       redistribute (the box's height is just its content plus this
+       padding, not taller than that). Shifting the balance from top
+       padding to bottom padding is what actually moves the content
+       down -- same total (was 2.5rem + 1.75rem = 4.25rem), just moved
+       from the bottom side to the top side, so the box itself doesn't
+       grow and internal gaps stay untouched. */
+    padding: 3.25rem 1.5rem 1rem;
   }
   .tryit-copy-col {
     align-items: center;
