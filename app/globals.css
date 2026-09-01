@@ -22,12 +22,17 @@ body {
 }
 
 /* Root scale for every rem-based size on the page (nearly everything --
-   font sizes, gaps, padding) -- was the unstyled browser default (16px).
-   80% of that default, exactly, so the whole page reads at 80% of what
-   "100% view" looked like -- a uniform 20% reduction, everywhere, in
-   one place. */
+   font sizes, gaps, padding) -- was the unstyled browser default (16px),
+   then 80% of that (12.8px). Still read as too big on a wide desktop
+   window -- likely because several sizes (the hero heading, kicker,
+   etc.) are `clamp(min, Nvw, max)`: past a certain viewport width they
+   just sit at their rem-based max regardless of how much wider the
+   window gets, so a 20% cut to that max can still look sizable in
+   absolute pixels on a big monitor. Cutting another 20% from the
+   already-reduced value (12.8px -> 10.24px, ~64% of the original
+   default) for a bigger, more obvious drop. */
 html {
-  font-size: 12.8px;
+  font-size: 10.24px;
 }
 
 body {
@@ -1447,6 +1452,79 @@ textarea {
   .tryit-section-heading,
   .tryit-tagline {
     text-align: center;
+  }
+}
+
+/* Mobile-only reorder: regroups three sections that are otherwise
+   unrelated siblings (.marketing-hero-split, the CTA-tight section,
+   .ambient-section) into one new sequence -- hero copy next to the
+   small ambient phone, then the try-it phone, then the CTA, then the
+   rest of the ambient section -- without moving anything in the DOM.
+   .mobile-hero-flow (wrapping all three in page.js) becomes the grid;
+   display:contents on the two in-between sections/wrappers removes
+   their own box so their children become direct items of that grid
+   instead. Entirely inert above 980px -- .mobile-hero-flow has no
+   rules outside this query, so desktop's existing layout for all three
+   sections is completely untouched. */
+@media (max-width: 980px) {
+  .mobile-hero-flow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+    grid-template-areas:
+      "heroText heroLoop"
+      "tryit tryit"
+      "cta cta"
+      "ambientTagline ambientTagline"
+      "ambientCards ambientCards";
+    align-items: center;
+    column-gap: 1.25rem;
+    row-gap: 2rem;
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 2.5rem;
+  }
+
+  .marketing-hero-split {
+    display: contents;
+  }
+
+  .marketing-hero-split .marketing-hero-copy {
+    grid-area: heroText;
+    text-align: left;
+  }
+
+  .marketing-hero-demo {
+    grid-area: tryit;
+  }
+
+  .marketing-cta-section-tight {
+    grid-area: cta;
+  }
+
+  .ambient-section {
+    display: contents;
+  }
+
+  .ambient-left {
+    grid-area: ambientTagline;
+    text-align: center;
+  }
+
+  .ambient-right {
+    display: contents;
+  }
+
+  /* Pulls just the phone out of .ambient-right up into the heroLoop
+     slot -- .ambient-cards (the other half of .ambient-right) stays
+     down in its own area below the CTA, unaffected. */
+  .tryit-wrap-ambient {
+    grid-area: heroLoop;
+    justify-self: end;
+  }
+
+  .ambient-cards {
+    grid-area: ambientCards;
+    width: 100%;
   }
 }
 
