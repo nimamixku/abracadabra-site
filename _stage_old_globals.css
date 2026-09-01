@@ -1554,14 +1554,6 @@ textarea {
   transition: border-color 0.15s ease;
 }
 
-/* Desktop only, a little shorter than the base 610px -- mobile is
-   untouched. */
-@media (min-width: 981px) {
-  .tryit-phone {
-    height: 560px;
-  }
-}
-
 .tryit-phone-drag {
   border-color: var(--accent);
 }
