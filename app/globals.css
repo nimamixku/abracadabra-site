@@ -49,11 +49,15 @@ a {
 }
 
 /* ---- masthead ---- */
-/* Desktop: normal flow -- the header scrolls away with the rest of the
-   page, same as everything else. Mobile gets a different rule below
-   (the header + marquee ride together as one sticky unit there) -- see
-   the max-width:980px override. */
+/* The ABRACADABRA header always stays visible while scrolling -- pinned
+   to the top so a customer never loses sight of the shop name/logo. On
+   desktop the header itself is what pins; the marquee below it scrolls
+   away normally, underneath it. On mobile, the header and marquee ride
+   together as one pinned unit instead (see the max-width:980px rule). */
 .masthead {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   background: rgba(11, 11, 13, 0.85);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--card-line);
@@ -64,10 +68,6 @@ a {
 }
 
 @media (max-width: 980px) {
-  /* Mobile only: sticky moves to the wrapper so the marquee rides along
-     with the header as one unit instead of scrolling out from under it.
-     .masthead drops back to normal flow inside that sticky wrapper so
-     there's only one sticky context, not a nested one. */
   .masthead-group {
     position: sticky;
     top: 0;
