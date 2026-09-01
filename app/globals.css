@@ -22,17 +22,12 @@ body {
 }
 
 /* Root scale for every rem-based size on the page (nearly everything --
-   font sizes, gaps, padding) -- was the unstyled browser default (16px),
-   then 80% of that (12.8px). Still read as too big on a wide desktop
-   window -- likely because several sizes (the hero heading, kicker,
-   etc.) are `clamp(min, Nvw, max)`: past a certain viewport width they
-   just sit at their rem-based max regardless of how much wider the
-   window gets, so a 20% cut to that max can still look sizable in
-   absolute pixels on a big monitor. Cutting another 20% from the
-   already-reduced value (12.8px -> 10.24px, ~64% of the original
-   default) for a bigger, more obvious drop. */
+   font sizes, gaps, padding) -- 80% of the unstyled browser default
+   (16px -> 12.8px). This is the confirmed-good value from the 80%-zoom
+   comparison -- reverted back to it after the further cut to 10.24px
+   made text proportions look wrong. */
 html {
-  font-size: 10.24px;
+  font-size: 12.8px;
 }
 
 body {
