@@ -40,19 +40,14 @@ a {
 }
 
 /* ---- masthead ---- */
-/* Sticky lives on the wrapper, not .masthead itself, so the marquee
-   right below it (previously plain normal-flow -- it would scroll out
-   from under the header instead of staying pinned with it) rides along
-   as one sticky unit with the header on both desktop and mobile.
-   Presentation is unchanged -- same two pieces, same look, just moving
-   together now instead of the marquee scrolling away on its own. */
-.masthead-group {
+/* Sticky moves to .masthead itself, not the wrapper -- the header still
+   pins in place exactly as before, but the marquee (the wrapper's other
+   child) is no longer part of that sticky unit, so it scrolls away
+   normally on its own instead of staying pinned alongside the header. */
+.masthead {
   position: sticky;
   top: 0;
   z-index: 20;
-}
-
-.masthead {
   background: rgba(11, 11, 13, 0.85);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--card-line);
