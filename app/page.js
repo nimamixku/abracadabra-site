@@ -34,10 +34,15 @@ export default function MarketingHome() {
         <section className="marketing-hero marketing-hero-split">
           <div className="marketing-hero-demo">
             <div className="tryit-copy-col">
-              <h2 className="tryit-section-heading">Try it before you buy it</h2>
+              <h2 className="tryit-section-heading">
+                <span className="tryit-desktop-break">Try it before</span>{" "}
+                <span className="tryit-desktop-break">you buy it</span>
+              </h2>
               <p className="tryit-tagline">
-                A free look at your own work in the real feed — before you build
-                anything.
+                <span className="tryit-desktop-break">A free look at your own</span>{" "}
+                <span className="tryit-desktop-break">work in the real feed —</span>{" "}
+                <span className="tryit-desktop-break">before you build</span>{" "}
+                <span className="tryit-desktop-break">anything.</span>
               </p>
               <p className="tryit-copy-hint tryit-hint-drag">drag &amp; drop up to 5 images to preview</p>
               <p className="tryit-copy-hint tryit-hint-tap">tap to add up to 5 images to preview</p>

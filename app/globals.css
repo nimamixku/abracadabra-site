@@ -49,19 +49,14 @@ a {
 }
 
 /* ---- masthead ---- */
-/* Sticky lives on the wrapper, not .masthead itself, so the marquee
-   right below it (previously plain normal-flow -- it would scroll out
-   from under the header instead of staying pinned with it) rides along
-   as one sticky unit with the header on both desktop and mobile.
-   Presentation is unchanged -- same two pieces, same look, just moving
-   together now instead of the marquee scrolling away on its own. */
-.masthead-group {
+/* Desktop: back to the original behavior -- only the header itself
+   sticks, the marquee scrolls away normally underneath it. Mobile gets
+   a different rule below (the marquee rides along with the header as
+   one sticky unit there) -- see the max-width:980px override. */
+.masthead {
   position: sticky;
   top: 0;
   z-index: 20;
-}
-
-.masthead {
   background: rgba(11, 11, 13, 0.85);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--card-line);
@@ -69,6 +64,21 @@ a {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+}
+
+@media (max-width: 980px) {
+  /* Mobile only: sticky moves to the wrapper so the marquee rides along
+     with the header as one unit instead of scrolling out from under it.
+     .masthead drops back to normal flow inside that sticky wrapper so
+     there's only one sticky context, not a nested one. */
+  .masthead-group {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
+  .masthead {
+    position: static;
+  }
 }
 
 .brand {
@@ -1364,6 +1374,18 @@ textarea {
   text-align: left;
 }
 
+/* Forces the exact desktop line breaks for the heading + tagline above
+   (rather than leaving it to wrap on its own, which drifted every time
+   the root font-size changed) -- inline by default so mobile still
+   wraps naturally based on its own narrower width, and only becomes a
+   forced line break above the 980px breakpoint where the 3-column
+   layout lives. */
+@media (min-width: 981px) {
+  .tryit-desktop-break {
+    display: block;
+  }
+}
+
 /* Same small size as the floating hint that sits over the phone itself
    (.tryit-floating-hint) -- repeating the instruction here in plain,
    static copy so it isn't missed if that floating version has already
@@ -1464,7 +1486,12 @@ textarea {
 @media (max-width: 980px) {
   .mobile-hero-flow {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+    /* Second column is a fixed width matching the shrunk ambient phone
+       below (not "auto") -- letting it size to the phone's original
+       225px-wide box left almost no room for the headline text next to
+       it, which is what forced "instant" / "pay" / "&" / "download."
+       onto their own separate lines. */
+    grid-template-columns: minmax(0, 1fr) 100px;
     grid-template-areas:
       "heroText heroLoop"
       "tryit tryit"
@@ -1511,10 +1538,18 @@ textarea {
 
   /* Pulls just the phone out of .ambient-right up into the heroLoop
      slot -- .ambient-cards (the other half of .ambient-right) stays
-     down in its own area below the CTA, unaffected. */
+     down in its own area below the CTA, unaffected. Also shrunk down
+     from its normal 225px-wide size to match the 100px column above --
+     at full ambient size there was no room left for the headline. */
   .tryit-wrap-ambient {
     grid-area: heroLoop;
     justify-self: end;
+    width: 100px;
+    height: 204px;
+  }
+
+  .tryit-wrap-ambient .tryit-phone-ambient {
+    transform: scale(0.333);
   }
 
   .ambient-cards {
