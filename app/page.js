@@ -42,6 +42,15 @@ export default function MarketingHome() {
             <span className="hero-line">instant pay &amp; download.</span>
             <span className="hero-line">infinite scroll and shuffle.</span>
           </h1>
+          {/* Mobile only (see .hero-mobile-ambient, hidden everywhere else) --
+              the small passive/ambient phone, same component already used
+              below in .ambient-section, just a second instance here at a
+              smaller size so it can sit next to the headline on mobile.
+              Never the interactive try-it phone -- that one stays full size,
+              in its own full section below (see .marketing-hero-demo). */}
+          <div className="hero-mobile-ambient" aria-hidden="true">
+            <AmbientLoop />
+          </div>
           <p className="marketing-sub">
             Just easier — no cart, no checkout, and your entire catalog
             stays on display, not just what's newest. No forced cropping, no
