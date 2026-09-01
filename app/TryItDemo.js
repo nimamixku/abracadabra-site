@@ -377,7 +377,7 @@ export default function TryItDemo({ variant = "interactive" }) {
                   {slot.url ? (
                     <img src={slot.url} alt="" />
                   ) : (
-                    <div className="tenant-card-media-empty tryit-empty-plus" aria-hidden="true">
+                    <div className="tenant-card-media-empty tryit-card-empty" aria-hidden="true">
                       {!isAmbient && <span className="tryit-card-plus">+</span>}
                     </div>
                   )}
