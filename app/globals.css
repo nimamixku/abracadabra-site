@@ -1368,7 +1368,7 @@ textarea {
    paired set of instructions, not two evenly-spaced statements like the
    heading/tagline above them. */
 .tryit-copy-hint-tight {
-  margin-top: -0.6rem;
+  margin-top: -0.9rem;
 }
 
 /* Dragging isn't a real gesture on a touchscreen -- below the breakpoint
