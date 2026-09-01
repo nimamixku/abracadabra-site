@@ -126,6 +126,7 @@ export default function TryItDemo({ variant = "interactive" }) {
   const pendingIdRef = useRef(null);
   const screenRef = useRef(null);
   const cardRefs = useRef({});
+  const titleInputRefs = useRef({});
   const clickTimerRef = useRef(null);
 
   // Scoped scroll: moves the card within the phone's OWN scroll
@@ -228,6 +229,30 @@ export default function TryItDemo({ variant = "interactive" }) {
     Object.values(cardRefs.current).forEach((el) => el && observer.observe(el));
     return () => observer.disconnect();
   }, [isAmbient, hasAny, slots]);
+
+  // "Fit text" for the editable title -- a title auto-filled from a real
+  // filename (see titleFromFilename above) can easily be one long
+  // unbroken word ("Neworleansnight") that's wider than the card, and a
+  // single-line <input> just clips it instead of wrapping like a <p>
+  // would. Rather than truncate it, shrink that one title's font size
+  // just enough to fit on its own line, same idea as iOS's
+  // adjusts-font-size-to-fit-width. Resets to the base size and
+  // re-measures every time any title changes, so editing back down to a
+  // short title grows it back to normal.
+  useEffect(() => {
+    const BASE_PX = 18; // matches .card-title's own font-size
+    const MIN_PX = 11;
+    slots.forEach((slot) => {
+      const el = titleInputRefs.current[slot.id];
+      if (!el) return;
+      el.style.fontSize = `${BASE_PX}px`;
+      let size = BASE_PX;
+      while (el.scrollWidth > el.clientWidth && size > MIN_PX) {
+        size -= 1;
+        el.style.fontSize = `${size}px`;
+      }
+    });
+  }, [slots]);
 
   const fillSlot = useCallback(
     (id, file) => {
@@ -417,6 +442,9 @@ export default function TryItDemo({ variant = "interactive" }) {
                           not just a picture of what the feed looks like. */}
                       <input
                         className="card-title tryit-title-input"
+                        ref={(el) => {
+                          titleInputRefs.current[slot.id] = el;
+                        }}
                         value={slot.title ?? ""}
                         onChange={(e) => updateSlotField(slot.id, "title", e.target.value)}
                         placeholder="Add a title"
