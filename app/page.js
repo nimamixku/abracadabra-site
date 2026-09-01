@@ -26,12 +26,12 @@ export default function MarketingHome() {
           <div className="tryit-copy-col">
             <h2 className="tryit-section-heading">Try it before you buy it</h2>
             <p className="tryit-tagline">
-              A free look at your own work in the real feed — before you build
-              anything.
+              A free look at your own work in the real feed — this is what
+              building your shop actually feels like.
             </p>
             <p className="tryit-copy-hint tryit-hint-drag">drag &amp; drop / tap &amp; upload any image to preview</p>
             <p className="tryit-copy-hint tryit-hint-tap">tap &amp; upload any image to preview</p>
-            <p className="tryit-copy-hint tryit-copy-hint-tight tryit-clear-hint-desktop">tap clear to reset and see again</p>
+            <p className="tryit-copy-hint tryit-copy-hint-tight tryit-clear-hint-desktop">tap clear to reset</p>
             <p className="tryit-copy-hint tryit-copy-hint-tight tryit-clear-hint-mobile">
               tap <span className="tryit-clear-chip">clear</span> to reset
             </p>
