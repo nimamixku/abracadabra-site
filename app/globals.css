@@ -1399,16 +1399,6 @@ textarea {
     text-align: center;
     max-width: 640px;
   }
-  /* Mobile only -- visual order swap via grid `order`, not a DOM/markup
-     change and not a width/columns change, so it can't reintroduce the
-     earlier squeeze bug (that came from shrinking the demo's grid track,
-     not from reordering). Copy reads first, the try-it phone demo second. */
-  .marketing-hero-split .marketing-hero-copy {
-    order: 1;
-  }
-  .marketing-hero-split .marketing-hero-demo {
-    order: 2;
-  }
   .marketing-hero-split .marketing-hero-copy {
     text-align: center;
   }
@@ -1430,14 +1420,6 @@ textarea {
   }
   .tryit-section-heading,
   .tryit-tagline {
-    text-align: center;
-  }
-  /* Mobile only -- this row sits under the hero and stays left-aligned
-     (flex-start) on desktop where it's next to other left-aligned copy,
-     but on a narrow single-column mobile layout it needs to read as
-     centered like everything else above it. */
-  .marketing-cta-section-tight {
-    justify-content: center;
     text-align: center;
   }
 }
