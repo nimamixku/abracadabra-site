@@ -29,11 +29,12 @@ export default function MarketingHome() {
               A free look at your own work in the real feed — this is what
               building your shop actually feels like.
             </p>
-            <p className="tryit-copy-hint tryit-hint-drag">drag &amp; drop / tap &amp; upload any image to preview</p>
-            <p className="tryit-copy-hint tryit-hint-tap">tap &amp; upload any image to preview</p>
-            <p className="tryit-copy-hint tryit-copy-hint-tight tryit-clear-hint-desktop">tap clear to reset</p>
-            <p className="tryit-copy-hint tryit-copy-hint-tight tryit-clear-hint-mobile">
-              tap <span className="tryit-clear-chip">clear</span> to reset
+            <p className="tryit-copy-hint tryit-hint-drag">
+              drag &amp; drop / tap &amp; upload any image to preview. tap clear to reset
+            </p>
+            <p className="tryit-copy-hint tryit-hint-tap">
+              tap &amp; upload any image to preview. tap{" "}
+              <span className="tryit-clear-chip">clear</span> to reset
             </p>
           </div>
           <TryItDemo />
