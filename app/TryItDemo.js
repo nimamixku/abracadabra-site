@@ -519,11 +519,7 @@ export default function TryItDemo({ variant = "interactive" }) {
                   )}
                 </div>
                 {slot.url && (
-                  <div
-                    className="card-body"
-                    onFocus={() => !isAmbient && handleCardFocus(slot.id)}
-                    onBlur={() => !isAmbient && handleCardBlur(slot.id)}
-                  >
+                  <div className="card-body">
                     <div className="card-row">
                       {/* Editable title/price only on the real interactive
                           demo -- the passive ambient loop (isAmbient) resets
@@ -547,6 +543,8 @@ export default function TryItDemo({ variant = "interactive" }) {
                             }}
                             value={slot.title ?? ""}
                             onChange={(e) => updateSlotField(slot.id, "title", e.target.value)}
+                            onFocus={() => handleCardFocus(slot.id)}
+                            onBlur={() => handleCardBlur(slot.id)}
                             placeholder="Add a title"
                             maxLength={60}
                             aria-label="Title"
@@ -554,8 +552,11 @@ export default function TryItDemo({ variant = "interactive" }) {
                           <div className="card-price-col">
                             <input
                               className="card-price tryit-price-input"
+                              type="text"
                               value={slot.priceInput ?? ""}
                               onChange={(e) => updateSlotField(slot.id, "priceInput", e.target.value)}
+                              onFocus={() => handleCardFocus(slot.id)}
+                              onBlur={() => handleCardBlur(slot.id)}
                               placeholder={formatPrice(DEMO_PRICE_CENTS)}
                               inputMode="decimal"
                               aria-label="Price"
