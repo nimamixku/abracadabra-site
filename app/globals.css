@@ -1361,14 +1361,17 @@ textarea {
   margin: 0;
   color: var(--ink-dim);
   font-size: 0.75rem;
+  line-height: 1.3;
   text-align: left;
 }
 
 /* Pulls this line up against the hint above it -- the two read as one
    paired set of instructions, not two evenly-spaced statements like the
-   heading/tagline above them. */
+   heading/tagline above them. Offset matches .tryit-copy-hint's own
+   line-height (0.75rem * 1.3) so it lands flush against the line above
+   with no gap, regardless of how many lines that first hint wraps to. */
 .tryit-copy-hint-tight {
-  margin-top: -0.9rem;
+  margin-top: -0.975rem;
 }
 
 /* Dragging isn't a real gesture on a touchscreen -- below the breakpoint
