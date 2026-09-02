@@ -558,7 +558,6 @@ export default function TryItDemo({ variant = "interactive" }) {
                               onFocus={() => handleCardFocus(slot.id)}
                               onBlur={() => handleCardBlur(slot.id)}
                               placeholder={formatPrice(DEMO_PRICE_CENTS)}
-                              inputMode="decimal"
                               aria-label="Price"
                             />
                           </div>

@@ -1859,7 +1859,11 @@ textarea {
 
 .tryit-price-input {
   color: var(--accent);
-  text-align: right;
+  /* Deliberately left-aligned, not right -- right-aligned text inputs
+     have a long-standing WebKit bug where tapping anywhere in the field
+     doesn't correctly map to a caret position, so the cursor appears
+     stuck/unmovable and typing looks broken. Left-align avoids it. */
+  text-align: left;
   width: 84px;
   flex: none;
 }
