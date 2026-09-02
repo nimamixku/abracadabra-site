@@ -136,11 +136,13 @@ export default function TryItDemo({ variant = "interactive" }) {
   const [activeId, setActiveId] = useState(null);
   const [themeBg, setThemeBg] = useState(DEFAULT_THEME_BG);
   const [themeInk, setThemeInk] = useState(DEFAULT_THEME_INK);
-  // Which card is currently being edited (title/price field focused) --
-  // the crop toggle only shows for that one card, and disappears again
-  // once editing moves elsewhere. Not the same as expandedId (the
-  // lightbox), and never set for the ambient loop.
-  const [activeEditId, setActiveEditId] = useState(null);
+  // Crop toggle visibility: whichever card the mouse is currently over
+  // (desktop) OR whichever card has a title/price field focused (mobile,
+  // where there's no hover) -- shows for either, hides once neither
+  // applies anymore. Two separate pieces of state, combined with OR when
+  // rendering, so hovering and editing never fight each other or flicker.
+  const [hoverId, setHoverId] = useState(null);
+  const [focusId, setFocusId] = useState(null);
   const fileInputRef = useRef(null);
   const pendingIdRef = useRef(null);
   const screenRef = useRef(null);
@@ -308,23 +310,6 @@ export default function TryItDemo({ variant = "interactive" }) {
     setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
   }
 
-  // Marks a card as "being edited" while focus is anywhere inside its
-  // title/price fields -- the crop toggle only shows during that window.
-  // Blur checks (a tick later, once the browser has settled on wherever
-  // focus actually landed) whether focus moved outside this card entirely
-  // before clearing, so tabbing between the title and price fields on the
-  // SAME card doesn't make the toggle flicker off and back on.
-  function handleCardFocus(id) {
-    setActiveEditId(id);
-  }
-  function handleCardBlur(id) {
-    requestAnimationFrame(() => {
-      const cardEl = cardRefs.current[id];
-      if (!cardEl || !cardEl.contains(document.activeElement)) {
-        setActiveEditId((cur) => (cur === id ? null : cur));
-      }
-    });
-  }
 
   function handlePhoneDrop(e) {
     if (isAmbient) return;
@@ -442,6 +427,8 @@ export default function TryItDemo({ variant = "interactive" }) {
                   cardRefs.current[slot.id] = el;
                 }}
                 data-slot-id={slot.id}
+                onMouseEnter={() => !isAmbient && setHoverId(slot.id)}
+                onMouseLeave={() => setHoverId((cur) => (cur === slot.id ? null : cur))}
               >
                 <div
                   className={`tenant-card-media${
@@ -504,7 +491,7 @@ export default function TryItDemo({ variant = "interactive" }) {
                       only -- never touches the full-res file a buyer
                       downloads, and "expand" always shows the real,
                       uncropped preview regardless of this setting. */}
-                  {!isAmbient && slot.url && activeEditId === slot.id && (
+                  {!isAmbient && slot.url && (hoverId === slot.id || focusId === slot.id) && (
                     <button
                       type="button"
                       className="tryit-crop-toggle"
@@ -543,8 +530,8 @@ export default function TryItDemo({ variant = "interactive" }) {
                             }}
                             value={slot.title ?? ""}
                             onChange={(e) => updateSlotField(slot.id, "title", e.target.value)}
-                            onFocus={() => handleCardFocus(slot.id)}
-                            onBlur={() => handleCardBlur(slot.id)}
+                            onFocus={() => setFocusId(slot.id)}
+                            onBlur={() => setFocusId((cur) => (cur === slot.id ? null : cur))}
                             placeholder="Add a title"
                             maxLength={60}
                             aria-label="Title"
@@ -555,8 +542,8 @@ export default function TryItDemo({ variant = "interactive" }) {
                               type="text"
                               value={slot.priceInput ?? ""}
                               onChange={(e) => updateSlotField(slot.id, "priceInput", e.target.value)}
-                              onFocus={() => handleCardFocus(slot.id)}
-                              onBlur={() => handleCardBlur(slot.id)}
+                              onFocus={() => setFocusId(slot.id)}
+                              onBlur={() => setFocusId((cur) => (cur === slot.id ? null : cur))}
                               placeholder={formatPrice(DEMO_PRICE_CENTS)}
                               aria-label="Price"
                             />
