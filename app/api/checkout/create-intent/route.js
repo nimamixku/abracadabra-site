@@ -25,7 +25,8 @@ function looksLikeEmail(value) {
 // any real UI depends on it.
 export async function POST(req) {
   try {
-    const { tenantSlug, productId, payerEmail, size, shippingAddress } = await req.json();
+    const { tenantSlug, productId, payerEmail, size, shippingAddress, donationAmountCents } =
+      await req.json();
     if (!tenantSlug || !productId) {
       return NextResponse.json({ error: "Missing tenant or product." }, { status: 400 });
     }
@@ -60,7 +61,31 @@ export async function POST(req) {
     // before it ships, never a charge silently missing one forever.
     const shippingCents = product.type === "physical" ? Number(product.details?.shipping_cents || 0) : 0;
 
-    const amount = product.price_cents + shippingCents;
+    // Video is the one type with no catalog price at all -- watching is
+    // always free, and a donation is a separate, buyer-chosen amount, not
+    // this product's price_cents (which stays 0). Unlike every other
+    // type, the charge amount genuinely comes from the client here -- so
+    // it's only ever accepted at all when this specific product has
+    // donations turned on, and it's clamped to a sane minimum regardless
+    // of what's sent. A request for a non-donate-enabled or non-video
+    // product can never turn into an arbitrary client-chosen charge.
+    const MIN_DONATION_CENTS = 100;
+    let amount;
+    if (product.type === "video") {
+      if (!product.details?.donate_enabled) {
+        return NextResponse.json({ error: "This video isn't accepting donations." }, { status: 400 });
+      }
+      const donationInt = Number.parseInt(donationAmountCents, 10);
+      if (!Number.isFinite(donationInt) || donationInt < MIN_DONATION_CENTS) {
+        return NextResponse.json(
+          { error: "Choose a donation amount of at least $1." },
+          { status: 400 }
+        );
+      }
+      amount = donationInt;
+    } else {
+      amount = product.price_cents + shippingCents;
+    }
     const applicationFeeCents = Math.round((amount * tenant.platform_fee_bps) / 10000);
 
     const stripe = getStripe();

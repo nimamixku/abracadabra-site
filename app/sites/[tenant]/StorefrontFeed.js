@@ -58,10 +58,19 @@ function formatPrice(cents) {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+// Video-only: the buyer-adjustable "give more" step and the fallback
+// starting amount if a product's own details are somehow missing it.
+// Mirrors TryItDemo.js's DONATE_SUGGESTED_CENTS/GIVE_MORE_STEP_CENTS
+// exactly, so a real video product behaves like the demo an artist
+// already tried.
+const GIVE_MORE_STEP_CENTS = 300;
+const DEFAULT_DONATE_SUGGESTED_CENTS = 1200;
+
 function typeLabel(type) {
   if (type === "digital_image") return "Art · digital";
   if (type === "digital_audio") return "Audio · digital";
   if (type === "physical") return "Physical · ships";
+  if (type === "video") return "Video · free to watch";
   return type;
 }
 
@@ -789,6 +798,272 @@ function BuySection({ tenantSlug, product, selectedSize = null, lazy = true, reg
   );
 }
 
+// Sibling to BuySection, for the one product type with no fixed price at
+// all: a video is always free to watch, and this is the entirely
+// separate, buyer-adjustable donation flow for pieces the artist has
+// opted into accepting them for (ProductManager.js's "let viewers
+// donate" toggle). Kept as its own component rather than a branch
+// inside BuySection on purpose -- a donation's amount is chosen by the
+// buyer every time, nothing else's price ever is, and keeping those two
+// mechanisms fully apart means a future change to one can never
+// accidentally change how the other charges someone.
+function DonateSection({ tenantSlug, product, lazy = true }) {
+  const stripe = useStripe();
+  const elements = useElements();
+
+  const suggestedCents = Number(product.details?.donate_suggested_cents) || DEFAULT_DONATE_SUGGESTED_CENTS;
+  const [amountCents, setAmountCents] = useState(suggestedCents);
+  const [giveMoreOpen, setGiveMoreOpen] = useState(false);
+
+  const [paymentRequest, setPaymentRequest] = useState(null);
+  const [canApplePay, setCanApplePay] = useState(null);
+  const [status, setStatus] = useState("idle"); // idle | processing | success | error
+  const [errorMsg, setErrorMsg] = useState("");
+  const [thankYou, setThankYou] = useState(false);
+  const [showCardForm, setShowCardForm] = useState(false);
+  const [cardEmail, setCardEmail] = useState("");
+
+  // Same lazy-mount reasoning as BuySection -- a card's wallet button
+  // waits until it's about to scroll into view.
+  const wrapRef = useRef(null);
+  const [nearView, setNearView] = useState(!lazy);
+
+  useEffect(() => {
+    if (!lazy) return;
+    const el = wrapRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => setNearView(entry.isIntersecting));
+      },
+      { rootMargin: "600px 0px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [lazy]);
+
+  // Rebuilding the paymentRequest whenever amountCents changes (via the
+  // give-more stepper) is the same approach BuySection already takes for
+  // totalCents -- keeps this consistent with the one other place a
+  // wallet total can change after mount, rather than introducing a
+  // second pattern (Stripe's paymentRequest.update() would also work,
+  // but this matches the existing code).
+  useEffect(() => {
+    if (!stripe || !nearView) {
+      setPaymentRequest(null);
+      setCanApplePay(null);
+      return;
+    }
+
+    const pr = stripe.paymentRequest({
+      country: "US",
+      currency: "usd",
+      total: { label: `Donate — ${product.title}`, amount: amountCents },
+      requestPayerName: true,
+      requestPayerEmail: true,
+    });
+
+    pr.on("paymentmethod", async (ev) => {
+      setStatus("processing");
+      try {
+        const res = await fetch("/api/checkout/create-intent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tenantSlug,
+            productId: product.id,
+            payerEmail: ev.payerEmail,
+            donationAmountCents: amountCents,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Could not start payment.");
+
+        const confirmResult = await stripe.confirmCardPayment(
+          data.clientSecret,
+          { payment_method: ev.paymentMethod.id },
+          { handleActions: false }
+        );
+
+        if (confirmResult.error) {
+          ev.complete("fail");
+          setStatus("error");
+          setErrorMsg(confirmResult.error.message || "Payment failed.");
+          return;
+        }
+
+        ev.complete("success");
+
+        let intent = confirmResult.paymentIntent;
+        if (intent.status === "requires_action") {
+          const second = await stripe.confirmCardPayment(data.clientSecret);
+          if (second.error) {
+            setStatus("error");
+            setErrorMsg(second.error.message || "Payment failed.");
+            return;
+          }
+          intent = second.paymentIntent;
+        }
+
+        const confirmRes = await fetch("/api/checkout/confirm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paymentIntentId: intent.id }),
+        });
+        const confirmData = await confirmRes.json();
+        if (!confirmRes.ok) throw new Error(confirmData.error || "Could not confirm donation.");
+
+        setThankYou(true);
+        setStatus("success");
+      } catch (err) {
+        ev.complete("fail");
+        setStatus("error");
+        setErrorMsg(err.message || "Something went wrong.");
+      }
+    });
+
+    pr.canMakePayment().then((res) => setCanApplePay(!!res));
+    setPaymentRequest(pr);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stripe, product.id, amountCents, nearView]);
+
+  // Plain-card fallback, same shape as BuySection's.
+  async function handleCardPay(e) {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+    const cardElement = elements.getElement(CardElement);
+    if (!cardElement) return;
+    setStatus("processing");
+    setErrorMsg("");
+    try {
+      const res = await fetch("/api/checkout/create-intent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantSlug,
+          productId: product.id,
+          payerEmail: cardEmail,
+          donationAmountCents: amountCents,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not start payment.");
+
+      const confirmResult = await stripe.confirmCardPayment(data.clientSecret, {
+        payment_method: { card: cardElement },
+      });
+
+      if (confirmResult.error) {
+        setStatus("error");
+        setErrorMsg(confirmResult.error.message || "Payment failed.");
+        return;
+      }
+
+      const confirmRes = await fetch("/api/checkout/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentIntentId: confirmResult.paymentIntent.id }),
+      });
+      const confirmData = await confirmRes.json();
+      if (!confirmRes.ok) throw new Error(confirmData.error || "Could not confirm donation.");
+
+      setThankYou(true);
+      setStatus("success");
+    } catch (err) {
+      setStatus("error");
+      setErrorMsg(err.message || "Something went wrong.");
+    }
+  }
+
+  if (thankYou) {
+    return (
+      <div ref={wrapRef} style={{ marginTop: 14 }}>
+        <p style={{ color: "var(--success)", fontWeight: 700, margin: 0 }}>
+          Thank you for donating {formatPrice(amountCents)} ✓
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div ref={wrapRef} style={{ marginTop: 14, position: "relative" }}>
+      {canApplePay && paymentRequest ? (
+        <div className="buy-row">
+          <PaymentRequestButtonElement
+            options={{
+              paymentRequest,
+              style: { paymentRequestButton: { type: "donate", theme: "dark", height: "50px" } },
+            }}
+          />
+          <span className="buy-hint">✦ tap &amp; give</span>
+        </div>
+      ) : (
+        <>
+          <button type="button" className="quick-card-btn" onClick={() => setShowCardForm((s) => !s)}>
+            {showCardForm ? "cancel" : `give by card — ${formatPrice(amountCents)}`}
+          </button>
+          {showCardForm && (
+            <form onSubmit={handleCardPay} className="card-pay-form">
+              <div className="card-element-wrap">
+                <CardElement options={CARD_ELEMENT_OPTIONS} />
+              </div>
+              <input
+                type="email"
+                className="card-email-input"
+                placeholder="email for receipt (optional)"
+                value={cardEmail}
+                onChange={(e) => setCardEmail(e.target.value)}
+              />
+              <button className="buy-btn" type="submit" disabled={status === "processing"}>
+                {status === "processing" ? "Processing…" : `Donate ${formatPrice(amountCents)}`}
+              </button>
+            </form>
+          )}
+        </>
+      )}
+
+      {giveMoreOpen && (
+        <div className="tryit-give-more-stepper">
+          <button
+            type="button"
+            className="tryit-step-btn"
+            onClick={() =>
+              setAmountCents((c) => Math.max(GIVE_MORE_STEP_CENTS, c - GIVE_MORE_STEP_CENTS))
+            }
+          >
+            −
+          </button>
+          <span className="tryit-amount-readout">{formatPrice(amountCents)}</span>
+          <button
+            type="button"
+            className="tryit-step-btn"
+            onClick={() => setAmountCents((c) => c + GIVE_MORE_STEP_CENTS)}
+          >
+            +
+          </button>
+        </div>
+      )}
+      <button
+        type="button"
+        className="tryit-give-more-link"
+        onClick={() => {
+          if (giveMoreOpen) setAmountCents(suggestedCents);
+          setGiveMoreOpen((o) => !o);
+        }}
+      >
+        {giveMoreOpen ? `never mind — back to ${formatPrice(suggestedCents)}` : "give more"}
+      </button>
+
+      {status === "processing" && (
+        <p style={{ color: "var(--ink-dim)", fontSize: 13, marginTop: 10 }}>Confirming your donation…</p>
+      )}
+      {status === "error" && (
+        <p style={{ color: "#ff8a8a", fontSize: 13, marginTop: 10 }}>{errorMsg}</p>
+      )}
+    </div>
+  );
+}
+
 // One scrollable card. Unlike the original single-tenant .card-media, the
 // image here is never force-cropped by default (see the plan's "No forced
 // cropping, ever" principle) -- it keeps its own natural shape, with only
@@ -827,6 +1102,9 @@ function ProductCard({ tenantSlug, product }) {
   const previewImage = product.files?.preview_image;
   const previewClip = product.files?.preview_clip;
   const crop = product.details?.crop; // undefined (natural, default) | "square" | "portrait"
+  const isVideo = product.type === "video";
+  const hasVideoFile = Boolean(product.files?.video);
+  const donateEnabled = isVideo && Boolean(product.details?.donate_enabled);
 
   function openLightbox() {
     if (clickTimerRef.current) {
@@ -859,9 +1137,31 @@ function ProductCard({ tenantSlug, product }) {
 
   return (
     <div className="card" ref={cardRef}>
-      <div className="tenant-card-media" onClick={handleClick} onDoubleClick={handleDoubleClick}>
+      <div
+        className="tenant-card-media"
+        // A video fills this whole area with its own native controls --
+        // no separate cover photo to route single/double-click through,
+        // so those gestures (lightbox open, double-click-to-buy) are
+        // deliberately left off here rather than fighting the video
+        // player for taps. Donating happens through the button below,
+        // same as how digital_audio's buy flow never sits on the audio
+        // element itself either.
+        onClick={isVideo ? undefined : handleClick}
+        onDoubleClick={isVideo ? undefined : handleDoubleClick}
+      >
         <span className="card-kind">{typeLabel(product.type)}</span>
-        {previewImage ? (
+        {isVideo ? (
+          hasVideoFile ? (
+            <video
+              src={`/api/preview?productId=${product.id}&kind=video`}
+              controls
+              playsInline
+              preload="none"
+            />
+          ) : (
+            <div className="tenant-card-media-empty" aria-hidden="true" />
+          )
+        ) : previewImage ? (
           <img
             src={`/api/preview?productId=${product.id}&kind=preview_image`}
             alt={product.title}
@@ -879,7 +1179,7 @@ function ProductCard({ tenantSlug, product }) {
         ) : (
           <div className="tenant-card-media-empty" aria-hidden="true" />
         )}
-        {previewImage && (
+        {!isVideo && previewImage && (
           <button
             type="button"
             className="expand-hint-wrap"
@@ -898,7 +1198,7 @@ function ProductCard({ tenantSlug, product }) {
         <div className="card-row">
           <p className="card-title">{product.title}</p>
           <div className="card-price-col">
-            <p className="card-price">{formatPrice(product.price_cents)}</p>
+            <p className="card-price">{isVideo ? "Free to watch" : formatPrice(product.price_cents)}</p>
           </div>
         </div>
 
@@ -936,17 +1236,25 @@ function ProductCard({ tenantSlug, product }) {
             card here shares the SAME tenant-scoped stripePromise (one
             Connect account per shop), unlike the platform-wide one in the
             old single-tenant page. */}
-        <Elements stripe={tenantStripe}>
-          <BuySection
-            tenantSlug={tenantSlug}
-            product={product}
-            selectedSize={selectedSize}
-            lazy={true}
-            registerBuyNow={(fn) => {
-              buyNowRef.current = fn;
-            }}
-          />
-        </Elements>
+        {isVideo ? (
+          donateEnabled && (
+            <Elements stripe={tenantStripe}>
+              <DonateSection tenantSlug={tenantSlug} product={product} lazy={true} />
+            </Elements>
+          )
+        ) : (
+          <Elements stripe={tenantStripe}>
+            <BuySection
+              tenantSlug={tenantSlug}
+              product={product}
+              selectedSize={selectedSize}
+              lazy={true}
+              registerBuyNow={(fn) => {
+                buyNowRef.current = fn;
+              }}
+            />
+          </Elements>
+        )}
       </div>
     </div>
   );
@@ -1101,7 +1409,11 @@ function Feed({ tenantSlug, products }) {
   // Physical products with sizes need that choice made on their own card,
   // so they're left out of the floating shortcut -- same as the original.
   const floatingEligible =
-    activeProduct && !(activeProduct.type === "physical" && Array.isArray(activeProduct.details?.sizes) && activeProduct.details.sizes.length > 0);
+    activeProduct &&
+    !(activeProduct.type === "physical" && Array.isArray(activeProduct.details?.sizes) && activeProduct.details.sizes.length > 0) &&
+    // A video with no donations turned on has nothing for this shortcut
+    // to offer -- watching itself is never gated behind any buy action.
+    !(activeProduct.type === "video" && !activeProduct.details?.donate_enabled);
   // Read unconditionally (Rules of Hooks) even though it's only used in
   // the floatingEligible branch below.
   const tenantStripe = useTenantStripe();
@@ -1138,13 +1450,18 @@ function Feed({ tenantSlug, products }) {
 // The floating "tap & pay" shortcut -- a real, live buy button for
 // whichever card is currently most visible.
 function FloatingBuy({ tenantSlug, product }) {
+  const isVideo = product.type === "video";
   return (
     <div className="floating-buy-wrap">
       <p className="floating-buy-title">
         <span className="floating-buy-title-text">{product.title}</span>
-        <span className="tap-pay-chip">✦ tap &amp; pay</span>
+        <span className="tap-pay-chip">✦ tap &amp; {isVideo ? "donate" : "pay"}</span>
       </p>
-      <BuySection tenantSlug={tenantSlug} product={product} lazy={false} />
+      {isVideo ? (
+        <DonateSection tenantSlug={tenantSlug} product={product} lazy={false} />
+      ) : (
+        <BuySection tenantSlug={tenantSlug} product={product} lazy={false} />
+      )}
     </div>
   );
 }
