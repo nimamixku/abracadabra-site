@@ -54,7 +54,6 @@ const CROP_CYCLE = [null, "square", "portrait"];
 // the feed never change wording for this card's sake.
 const DONATE_PLACEHOLDER_URL = "__donate_example__"; // sentinel, never used as a media src
 const DONATE_SAMPLE_TITLE = "Evening Session";
-const DONATE_SAMPLE_DESC = "Recorded live in the studio tonight — free to watch, always.";
 const DONATE_SUGGESTED_CENTS = 1200;
 const GIVE_MORE_STEP_CENTS = 300;
 
@@ -686,7 +685,6 @@ export default function TryItDemo({ variant = "interactive" }) {
 
                     {!isAmbient && slot.fixed && (
                       <>
-                        <p className="card-desc">{DONATE_SAMPLE_DESC}</p>
                         <div className="buy-row">
                           <button
                             type="button"
