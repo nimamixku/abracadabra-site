@@ -24,7 +24,8 @@ export async function PATCH(req, { params }) {
   const product = productRows[0];
   if (!product) return NextResponse.json({ error: "Unknown product." }, { status: 404 });
 
-  const { title, description, priceCents, sizes, shippingCents, crop, active } = await req.json();
+  const { title, description, priceCents, sizes, shippingCents, crop, active, donateEnabled, donateSuggestedCents } =
+    await req.json();
 
   const fields = [];
   const values = [];
@@ -48,14 +49,17 @@ export async function PATCH(req, { params }) {
   }
   if (priceCents !== undefined) {
     const priceInt = Number.parseInt(priceCents, 10);
-    if (active === true && (!Number.isFinite(priceInt) || priceInt <= 0)) {
+    // Video is free to watch -- its price_cents always stays 0, and
+    // publishing one never requires a price the way every other type
+    // does. A donation amount is unrelated and lives in `details` below.
+    if (product.type !== "video" && active === true && (!Number.isFinite(priceInt) || priceInt <= 0)) {
       return NextResponse.json(
         { error: "Price must be a positive number of cents to publish." },
         { status: 400 }
       );
     }
     fields.push(`price_cents = $${i++}`);
-    values.push(Number.isFinite(priceInt) && priceInt >= 0 ? priceInt : 0);
+    values.push(product.type === "video" ? 0 : Number.isFinite(priceInt) && priceInt >= 0 ? priceInt : 0);
   }
   if (active !== undefined) {
     fields.push(`active = $${i++}`);
@@ -83,6 +87,17 @@ export async function PATCH(req, { params }) {
     if (shippingCents !== undefined) {
       const shippingInt = Number.parseInt(shippingCents, 10);
       details.shipping_cents = Number.isFinite(shippingInt) && shippingInt >= 0 ? shippingInt : 0;
+      detailsChanged = true;
+    }
+  }
+  if (product.type === "video") {
+    if (donateEnabled !== undefined) {
+      details.donate_enabled = Boolean(donateEnabled);
+      detailsChanged = true;
+    }
+    if (donateSuggestedCents !== undefined) {
+      const suggestedInt = Number.parseInt(donateSuggestedCents, 10);
+      details.donate_suggested_cents = Number.isFinite(suggestedInt) && suggestedInt > 0 ? suggestedInt : 1200;
       detailsChanged = true;
     }
   }

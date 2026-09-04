@@ -6,6 +6,7 @@ const TYPE_LABELS = {
   digital_image: "Digital image",
   digital_audio: "Digital audio",
   physical: "Physical item",
+  video: "Video",
 };
 
 function formatPrice(cents) {
@@ -55,6 +56,15 @@ function fileFieldsFor(type) {
   }
   if (type === "physical") {
     return [{ kind: "preview_image", label: "Photo (what customers see in the feed)" }];
+  }
+  if (type === "video") {
+    // Free to watch, so there's no gated "full" file to keep separate
+    // from a preview -- the uploaded file itself IS what plays in the
+    // feed, same as TryItDemo.js's donate-card slot. Short-form only for
+    // now (a clip, not a feature-length upload) -- the whole file loads
+    // into memory to serve it (see the preview route), so this isn't
+    // built to handle long-form video yet.
+    return [{ kind: "video", label: "Short video clip (what customers watch — free, no purchase needed)" }];
   }
   // digital_image, and the fallback for anything unrecognized
   return [
@@ -128,6 +138,16 @@ function ProductCard({ product, expanded, onToggle, onChanged, tenantSlug }) {
     product.details?.shipping_cents ? (product.details.shipping_cents / 100).toFixed(2) : ""
   );
   const [crop, setCrop] = useState(product.details?.crop || "natural");
+  // Video-only: whether donations are enabled for this piece, and the
+  // suggested starting amount shown on the donate button -- mirrors
+  // TryItDemo.js's DONATE_SUGGESTED_CENTS exactly, so a real video
+  // product's editor feels like the demo an artist already tried.
+  const [donateEnabled, setDonateEnabled] = useState(Boolean(product.details?.donate_enabled));
+  const [donateSuggested, setDonateSuggested] = useState(
+    product.details?.donate_suggested_cents
+      ? (product.details.donate_suggested_cents / 100).toFixed(2)
+      : "12.00"
+  );
   const CROP_ORDER = ["natural", "square", "portrait"];
   function cycleCrop() {
     setCrop((c) => CROP_ORDER[(CROP_ORDER.indexOf(c) + 1) % CROP_ORDER.length]);
@@ -148,6 +168,12 @@ function ProductCard({ product, expanded, onToggle, onChanged, tenantSlug }) {
     setSizes(Array.isArray(product.details?.sizes) ? product.details.sizes.join(", ") : "");
     setShipping(product.details?.shipping_cents ? (product.details.shipping_cents / 100).toFixed(2) : "");
     setCrop(product.details?.crop || "natural");
+    setDonateEnabled(Boolean(product.details?.donate_enabled));
+    setDonateSuggested(
+      product.details?.donate_suggested_cents
+        ? (product.details.donate_suggested_cents / 100).toFixed(2)
+        : "12.00"
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product, expanded]);
 
@@ -207,6 +233,12 @@ function ProductCard({ product, expanded, onToggle, onChanged, tenantSlug }) {
         ...(product.type === "physical"
           ? { sizes, shippingCents: Math.round(Number.parseFloat(shipping || "0") * 100) }
           : {}),
+        ...(product.type === "video"
+          ? {
+              donateEnabled,
+              donateSuggestedCents: Math.round(Number.parseFloat(donateSuggested || "0") * 100),
+            }
+          : {}),
       };
       const res = await fetch(`/api/dashboard/products/${product.id}`, {
         method: "PATCH",
@@ -242,6 +274,7 @@ function ProductCard({ product, expanded, onToggle, onChanged, tenantSlug }) {
   const files = product.files || {};
   const hasFull = Boolean(files.full);
   const hasPreview = Boolean(files.preview_image);
+  const hasVideo = Boolean(files.video);
   const previewIsGenerated = Boolean(product.details?.preview_generated);
   // Only worth offering for types whose preview_image is meant to come
   // FROM the full-res file (a digital image is its own preview source) --
@@ -250,14 +283,31 @@ function ProductCard({ product, expanded, onToggle, onChanged, tenantSlug }) {
   const canGeneratePreview = product.type === "digital_image" && hasFull && !hasPreview;
   const busy = status === "saving" || status === "publishing" || status === "removing";
   const displayTitle = product.title || "Untitled — tap to finish";
-  const displayPrice = product.price_cents > 0 ? formatPrice(product.price_cents) : "no price yet";
+  const displayPrice =
+    product.type === "video"
+      ? "Free to watch"
+      : product.price_cents > 0
+      ? formatPrice(product.price_cents)
+      : "no price yet";
 
   return (
     <div className="card">
       <div className="tenant-card-media dash-card-media" onClick={onToggle}>
         <span className="card-kind">{TYPE_LABELS[product.type] || product.type}</span>
         {!product.active && <span className="dash-draft-badge">Draft</span>}
-        {hasPreview ? (
+        {product.type === "video" ? (
+          hasVideo ? (
+            <video
+              className="dash-card-video"
+              src={`/api/preview?productId=${product.id}&kind=video`}
+              controls
+              playsInline
+              onClick={(e) => e.stopPropagation()}
+            />
+          ) : (
+            <div className="tenant-card-media-empty" aria-hidden="true" />
+          )
+        ) : hasPreview ? (
           <img
             src={`/api/preview?productId=${product.id}&kind=preview_image`}
             alt={product.title || ""}
@@ -313,13 +363,39 @@ function ProductCard({ product, expanded, onToggle, onChanged, tenantSlug }) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
-            <input
-              className="dash-input"
-              placeholder="Price in dollars (e.g. 25.00)"
-              inputMode="decimal"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-            />
+            {product.type === "video" ? (
+              <>
+                <p style={{ color: "var(--ink-dim)", fontSize: "0.8rem", margin: 0 }}>
+                  Free for anyone to watch — no purchase needed. Built for short-form video (a
+                  clip, not a full-length upload).
+                </p>
+                <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "0.9rem" }}>
+                  <input
+                    type="checkbox"
+                    checked={donateEnabled}
+                    onChange={(e) => setDonateEnabled(e.target.checked)}
+                  />
+                  Let viewers donate
+                </label>
+                {donateEnabled && (
+                  <input
+                    className="dash-input"
+                    placeholder="Suggested donation in dollars (e.g. 12.00)"
+                    inputMode="decimal"
+                    value={donateSuggested}
+                    onChange={(e) => setDonateSuggested(e.target.value)}
+                  />
+                )}
+              </>
+            ) : (
+              <input
+                className="dash-input"
+                placeholder="Price in dollars (e.g. 25.00)"
+                inputMode="decimal"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+              />
+            )}
 
             {product.type === "physical" && (
               <>

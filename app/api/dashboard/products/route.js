@@ -6,7 +6,7 @@ import { query } from "@/lib/db";
 // accepts any of the three launched types. New types still don't need a
 // schema migration (see migrations/001_init.sql's comment on `details`),
 // just a new branch here for whatever that type's own fields are.
-const PRODUCT_TYPES = new Set(["digital_image", "digital_audio", "physical"]);
+const PRODUCT_TYPES = new Set(["digital_image", "digital_audio", "physical", "video"]);
 
 export async function GET(req) {
   const { tenant } = await getSessionTenant(req.cookies);
@@ -45,7 +45,8 @@ export async function POST(req) {
   const { tenant } = await getSessionTenant(req.cookies);
   if (!tenant) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
 
-  const { title, description, priceCents, type, sizes, shippingCents, crop, draft } = await req.json();
+  const { title, description, priceCents, type, sizes, shippingCents, crop, draft, donateEnabled, donateSuggestedCents } =
+    await req.json();
   const normalizedTitle = String(title || "").trim();
   const priceInt = Number.parseInt(priceCents, 10);
   const normalizedType = PRODUCT_TYPES.has(type) ? type : "digital_image";
@@ -63,11 +64,16 @@ export async function POST(req) {
     if (!normalizedTitle) {
       return NextResponse.json({ error: "Title is required." }, { status: 400 });
     }
-    if (!Number.isFinite(priceInt) || priceInt <= 0) {
+    // Every other type charges a price to unlock the file; a video
+    // product is free to watch by design -- an optional donation is a
+    // separate, buyer-adjustable amount at checkout time, never this
+    // product's own price_cents (see the details block below).
+    if (normalizedType !== "video" && (!Number.isFinite(priceInt) || priceInt <= 0)) {
       return NextResponse.json({ error: "Price must be a positive number of cents." }, { status: 400 });
     }
   }
-  const safePriceInt = Number.isFinite(priceInt) && priceInt >= 0 ? priceInt : 0;
+  const safePriceInt =
+    normalizedType === "video" ? 0 : Number.isFinite(priceInt) && priceInt >= 0 ? priceInt : 0;
 
   // Only `physical` has extra fields today -- sizes (optional; an item
   // with no size options just skips the size picker at checkout) and a
@@ -85,6 +91,21 @@ export async function POST(req) {
     details = {
       ...(sizeList.length > 0 ? { sizes: sizeList } : {}),
       shipping_cents: Number.isFinite(shippingInt) && shippingInt >= 0 ? shippingInt : 0,
+    };
+  }
+
+  // Free to watch, with an optional per-piece donation -- both the
+  // opt-in itself and its suggested starting amount live here in
+  // `details`, same reasoning as physical's sizes/shipping above. The
+  // suggested amount is only ever a starting point shown on the donate
+  // button (mirrors TryItDemo.js's DONATE_SUGGESTED_CENTS) -- never the
+  // amount actually charged, which a buyer can always adjust upward via
+  // the give-more stepper before paying.
+  if (normalizedType === "video") {
+    const suggestedInt = Number.parseInt(donateSuggestedCents, 10);
+    details = {
+      donate_enabled: Boolean(donateEnabled),
+      donate_suggested_cents: Number.isFinite(suggestedInt) && suggestedInt > 0 ? suggestedInt : 1200,
     };
   }
 

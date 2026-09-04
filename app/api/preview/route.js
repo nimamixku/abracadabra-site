@@ -13,7 +13,13 @@ import { getObjectStream } from "@/lib/r2";
 // The `full` file a buyer pays for is deliberately NOT reachable through
 // this route (kind is restricted below) -- that one only ever comes back
 // through the order-gated download route.
-const PUBLIC_KINDS = new Set(["preview_image", "preview_clip"]);
+//
+// `video` is different from both: a video product's playable file is
+// never gated at all -- watching is always free, with an optional
+// donation as a completely separate, buyer-adjustable transaction (see
+// the video+donate feature) -- so it belongs in this public set too,
+// not behind the order-gated download route the way a paid `full` file is.
+const PUBLIC_KINDS = new Set(["preview_image", "preview_clip", "video"]);
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);

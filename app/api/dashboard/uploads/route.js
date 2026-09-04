@@ -3,7 +3,7 @@ import { getSessionTenant } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { buildKey, createUploadUrl } from "@/lib/r2";
 
-const ALLOWED_KINDS = new Set(["full", "preview_image", "preview_clip"]);
+const ALLOWED_KINDS = new Set(["full", "preview_image", "preview_clip", "video"]);
 
 // Hands back a short-lived presigned PUT URL so the browser uploads
 // straight to R2 -- large TIFFs never pass through a Vercel function
