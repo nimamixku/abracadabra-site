@@ -48,7 +48,7 @@ const CROP_CYCLE = [null, "square", "portrait"];
 // real sample video file to drop in here. Lives only in the interactive
 // variant -- the passive ambient loop stays exactly as it was.
 const DONATE_SAMPLE_URL = "/previews/cafe-du-monde.jpg";
-const DONATE_SAMPLE_TITLE = "Evening Improvisation (unedited)";
+const DONATE_SAMPLE_TITLE = "Evening Session";
 const DONATE_SUGGESTED_CENTS = 1200;
 
 const AMBIENT_SAMPLE_POOL = [
@@ -180,6 +180,7 @@ export default function TryItDemo({ variant = "interactive" }) {
   const pendingIdRef = useRef(null);
   const screenRef = useRef(null);
   const cardRefs = useRef({});
+  const visibilityRatiosRef = useRef({});
   const titleInputRefs = useRef({});
   const clickTimerRef = useRef(null);
 
@@ -268,17 +269,26 @@ export default function TryItDemo({ variant = "interactive" }) {
   useEffect(() => {
     const screenEl = screenRef.current;
     if (!screenEl || !hasAny) return undefined;
+    const ratios = visibilityRatiosRef.current;
     const observer = new IntersectionObserver(
       (entries) => {
-        let best = null;
+        // Each callback only reports cards that just crossed a threshold,
+        // not every card on screen -- so update just those, then re-pick
+        // the max across ALL known ratios, not only this batch.
         for (const entry of entries) {
-          if (entry.intersectionRatio > 0 && (!best || entry.intersectionRatio > best.intersectionRatio)) {
-            best = entry;
+          ratios[Number(entry.target.dataset.slotId)] = entry.intersectionRatio;
+        }
+        let bestId = null;
+        let bestRatio = 0;
+        for (const [idStr, ratio] of Object.entries(ratios)) {
+          if (ratio > bestRatio) {
+            bestRatio = ratio;
+            bestId = Number(idStr);
           }
         }
-        if (best) setActiveId(Number(best.target.dataset.slotId));
+        if (bestId != null) setActiveId(bestId);
       },
-      { root: screenEl, threshold: [0.3, 0.6, 0.9] }
+      { root: screenEl, threshold: [0, 0.3, 0.6, 0.9] }
     );
     Object.values(cardRefs.current).forEach((el) => el && observer.observe(el));
     return () => observer.disconnect();
@@ -605,7 +615,7 @@ export default function TryItDemo({ variant = "interactive" }) {
                           <div className="card-price-col">
                             <p className="card-price">
                               {slot.donateCents
-                                ? `Donate ${formatPrice(slot.donateCents)}`
+                                ? `Donate $${slot.donateCents / 100}`
                                 : formatPrice(DEMO_PRICE_CENTS)}
                             </p>
                           </div>
