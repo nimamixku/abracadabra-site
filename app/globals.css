@@ -934,13 +934,15 @@ a {
   position: relative;
 }
 
-.tenant-card-media img {
+.tenant-card-media img,
+.tenant-card-media video {
   display: block;
   width: 100%;
   height: auto;
   max-height: 78vh;
   object-fit: contain;
   cursor: default;
+  background: #000;
 }
 
 .tenant-card-media-empty {
