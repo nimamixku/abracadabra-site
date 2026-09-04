@@ -451,6 +451,22 @@ export default function TryItDemo({ variant = "interactive" }) {
     setDonateGiveMoreOpen(false);
   }
 
+  // The marketing page's own instructional caption (app/page.js, via
+  // TryItClearHint) lives outside this component and is server-rendered,
+  // so its "clear" mention can't call handleClear directly -- it fires
+  // this plain custom event instead, and this is the only place that
+  // listens for it. Keeps that caption decoupled from this component's
+  // internals rather than reaching in with a ref.
+  useEffect(() => {
+    if (isAmbient) return undefined;
+    function onClearRequest() {
+      handleClear();
+    }
+    window.addEventListener("tryit:clear-request", onClearRequest);
+    return () => window.removeEventListener("tryit:clear-request", onClearRequest);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAmbient, slots]);
+
   const expandedSlot = !isAmbient && expandedId != null ? slots.find((s) => s.id === expandedId) : null;
   // The interactive demo's floating shuffle/buy chrome should read as
   // "always active" the same as the real storefront, not just appear

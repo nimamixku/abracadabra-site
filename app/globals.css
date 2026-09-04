@@ -1405,11 +1405,19 @@ textarea {
   background: var(--card);
   color: var(--ink-dim);
   font-size: 0.65rem;
+  font-family: inherit;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 3px 10px;
   border-radius: 999px;
   margin: 0 2px;
+  cursor: pointer;
+}
+
+.tryit-clear-chip:hover,
+.tryit-clear-chip:focus-visible {
+  border-color: var(--accent-dim);
+  color: var(--ink);
 }
 
 @media (max-width: 980px) {

@@ -1,4 +1,5 @@
 import TryItDemo from "./TryItDemo";
+import TryItClearHint from "./TryItClearHint";
 import MarketingMarquee from "./MarketingMarquee";
 import AmbientLoop from "./AmbientLoop";
 
@@ -29,13 +30,7 @@ export default function MarketingHome() {
               A free look at your own work in the real feed — this is what
               building your shop actually feels like.
             </p>
-            <p className="tryit-copy-hint tryit-hint-drag">
-              drag &amp; drop / tap &amp; upload any image to preview. tap clear to reset
-            </p>
-            <p className="tryit-copy-hint tryit-hint-tap">
-              tap &amp; upload any image to preview. tap{" "}
-              <span className="tryit-clear-chip">clear</span> to reset
-            </p>
+            <TryItClearHint />
           </div>
           <TryItDemo />
         </div>
