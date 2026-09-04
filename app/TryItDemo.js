@@ -39,6 +39,18 @@ const SLOT_COUNT = 5;
 // never forced by default.
 const CROP_CYCLE = [null, "square", "portrait"];
 
+// One fixed, always-there example card in the interactive demo -- not
+// something a visitor drops in, edits, or replaces. Its only job is
+// showing what a donate-enabled video post looks like in the feed, so a
+// visitor understands the option exists without building it themselves.
+// Uses a real sample photo as a stand-in for video art (rendered with a
+// play badge -- see .tryit-video-static in globals.css) since there's no
+// real sample video file to drop in here. Lives only in the interactive
+// variant -- the passive ambient loop stays exactly as it was.
+const DONATE_SAMPLE_URL = "/previews/cafe-du-monde.jpg";
+const DONATE_SAMPLE_TITLE = "Evening Improvisation (unedited)";
+const DONATE_SUGGESTED_CENTS = 1200;
+
 const AMBIENT_SAMPLE_POOL = [
   "flowers-and-roof.jpg",
   "fuchsia.jpg",
@@ -102,6 +114,7 @@ function titleFromFilename(filename) {
 // lightbox still show a real-looking number even before anyone bothers
 // to type one in.
 function priceCentsFor(slot) {
+  if (slot?.donateCents) return slot.donateCents;
   const parsed = Math.round(Number.parseFloat(slot?.priceInput || "") * 100);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEMO_PRICE_CENTS;
 }
@@ -115,21 +128,41 @@ function shuffleArray(arr) {
   return copy;
 }
 
-function emptySlots(count) {
-  return Array.from({ length: count }, (_, i) => ({
-    id: i,
-    url: null,
-    title: null,
-    priceInput: "",
-    crop: null,
-  }));
+function emptySlots(count, opts = {}) {
+  const { seedDonate = false } = opts;
+  return Array.from({ length: count }, (_, i) => {
+    if (seedDonate && i === 0) {
+      return {
+        id: i,
+        url: DONATE_SAMPLE_URL,
+        title: DONATE_SAMPLE_TITLE,
+        priceInput: "",
+        crop: null,
+        kind: "video",
+        playable: false,
+        donateCents: DONATE_SUGGESTED_CENTS,
+        fixed: true,
+      };
+    }
+    return {
+      id: i,
+      url: null,
+      title: null,
+      priceInput: "",
+      crop: null,
+      kind: "photo",
+      playable: false,
+      donateCents: null,
+      fixed: false,
+    };
+  });
 }
 
 export default function TryItDemo({ variant = "interactive" }) {
   const isAmbient = variant === "ambient";
   const slotCount = isAmbient ? AMBIENT_SLOT_COUNT : SLOT_COUNT;
 
-  const [slots, setSlots] = useState(() => emptySlots(slotCount));
+  const [slots, setSlots] = useState(() => emptySlots(slotCount, { seedDonate: !isAmbient }));
   const [expandedId, setExpandedId] = useState(null);
   const [buyHint, setBuyHint] = useState(false);
   const [dragOverId, setDragOverId] = useState(null);
@@ -277,11 +310,27 @@ export default function TryItDemo({ variant = "interactive" }) {
 
   const fillSlot = useCallback(
     (id, file) => {
-      if (isAmbient || id == null || !file || !file.type.startsWith("image/")) return;
+      if (isAmbient || id == null || !file) return;
+      const isVideo = file.type.startsWith("video/");
+      const isImage = file.type.startsWith("image/");
+      if (!isVideo && !isImage) return;
       const url = URL.createObjectURL(file);
       const title = titleFromFilename(file.name);
       setSlots((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, url, title, priceInput: "", crop: null } : s))
+        prev.map((s) =>
+          s.id === id && !s.fixed
+            ? {
+                ...s,
+                url,
+                title,
+                priceInput: "",
+                crop: null,
+                kind: isVideo ? "video" : "photo",
+                playable: isVideo,
+                donateCents: null,
+              }
+            : s
+        )
       );
     },
     [isAmbient]
@@ -370,8 +419,8 @@ export default function TryItDemo({ variant = "interactive" }) {
 
   function handleClear() {
     if (isAmbient) return;
-    slots.forEach((s) => s.url && URL.revokeObjectURL(s.url));
-    setSlots(emptySlots(slotCount));
+    slots.forEach((s) => !s.fixed && s.url && URL.revokeObjectURL(s.url));
+    setSlots(emptySlots(slotCount, { seedDonate: true }));
     setExpandedId(null);
     setBuyHint(false);
     setActiveId(null);
@@ -401,10 +450,10 @@ export default function TryItDemo({ variant = "interactive" }) {
         {!isAmbient && !hasAny && (
           <>
             <p className="tryit-floating-hint tryit-hint-drag">
-              drag &amp; drop / tap &amp; upload any image to preview
+              drag &amp; drop / tap &amp; upload any image or video to preview
             </p>
             <p className="tryit-floating-hint tryit-hint-tap">
-              tap &amp; upload any image to preview
+              tap &amp; upload any image or video to preview
             </p>
           </>
         )}
@@ -445,19 +494,55 @@ export default function TryItDemo({ variant = "interactive" }) {
                   onDragLeave={() => setDragOverId((d) => (d === slot.id ? null : d))}
                   onDrop={(e) => handleSlotDrop(slot.id, e)}
                 >
-                  <span className="card-kind">photo</span>
+                  <span className="card-kind">{slot.kind === "video" ? "video" : "photo"}</span>
                   {slot.url ? (
-                    <img
-                      src={slot.url}
-                      alt=""
-                      style={
-                        slot.crop === "square"
-                          ? { aspectRatio: "1 / 1", objectFit: "cover" }
-                          : slot.crop === "portrait"
-                          ? { aspectRatio: "4 / 5", objectFit: "cover" }
-                          : undefined
-                      }
-                    />
+                    slot.kind === "video" ? (
+                      slot.playable ? (
+                        <video
+                          src={slot.url}
+                          muted
+                          loop
+                          autoPlay
+                          playsInline
+                          style={
+                            slot.crop === "square"
+                              ? { aspectRatio: "1 / 1", objectFit: "cover" }
+                              : slot.crop === "portrait"
+                              ? { aspectRatio: "4 / 5", objectFit: "cover" }
+                              : undefined
+                          }
+                        />
+                      ) : (
+                        <div className="tryit-video-static">
+                          <img
+                            src={slot.url}
+                            alt=""
+                            style={
+                              slot.crop === "square"
+                                ? { aspectRatio: "1 / 1", objectFit: "cover" }
+                                : slot.crop === "portrait"
+                                ? { aspectRatio: "4 / 5", objectFit: "cover" }
+                                : undefined
+                            }
+                          />
+                          <span className="tryit-play-badge" aria-hidden="true">
+                            ▶
+                          </span>
+                        </div>
+                      )
+                    ) : (
+                      <img
+                        src={slot.url}
+                        alt=""
+                        style={
+                          slot.crop === "square"
+                            ? { aspectRatio: "1 / 1", objectFit: "cover" }
+                            : slot.crop === "portrait"
+                            ? { aspectRatio: "4 / 5", objectFit: "cover" }
+                            : undefined
+                        }
+                      />
+                    )
                   ) : (
                     <div className="tenant-card-media-empty tryit-card-empty" aria-hidden="true">
                       {!isAmbient && <span className="tryit-card-plus">+</span>}
@@ -491,7 +576,7 @@ export default function TryItDemo({ variant = "interactive" }) {
                       only -- never touches the full-res file a buyer
                       downloads, and "expand" always shows the real,
                       uncropped preview regardless of this setting. */}
-                  {!isAmbient && slot.url && (hoverId === slot.id || focusId === slot.id) && (
+                  {!isAmbient && slot.url && !slot.fixed && (hoverId === slot.id || focusId === slot.id) && (
                     <button
                       type="button"
                       className="tryit-crop-toggle"
@@ -514,11 +599,15 @@ export default function TryItDemo({ variant = "interactive" }) {
                           non-interactive plain text like a real card,
                           never an <input>, or anything typed into it would
                           get wiped out a couple seconds later by the loop. */}
-                      {isAmbient ? (
+                      {isAmbient || slot.fixed ? (
                         <>
                           <p className="card-title">{slot.title}</p>
                           <div className="card-price-col">
-                            <p className="card-price">{formatPrice(DEMO_PRICE_CENTS)}</p>
+                            <p className="card-price">
+                              {slot.donateCents
+                                ? `Donate ${formatPrice(slot.donateCents)}`
+                                : formatPrice(DEMO_PRICE_CENTS)}
+                            </p>
                           </div>
                         </>
                       ) : (
@@ -580,7 +669,7 @@ export default function TryItDemo({ variant = "interactive" }) {
           >
             <p className="floating-buy-title">
               <span className="floating-buy-title-text">{activeSlot.title || "Untitled"}</span>
-              <span className="tap-pay-chip">✦ tap &amp; pay</span>
+              <span className="tap-pay-chip">✦ tap &amp; {activeSlot.donateCents ? "donate" : "pay"}</span>
             </p>
           </div>
         )}
@@ -595,7 +684,7 @@ export default function TryItDemo({ variant = "interactive" }) {
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/*,video/*"
             hidden
             onChange={handleFileChosen}
           />
@@ -662,14 +751,31 @@ export default function TryItDemo({ variant = "interactive" }) {
           >
             ✕
           </button>
-          <img className="tenant-lightbox-img" src={expandedSlot.url} alt="" />
+          {expandedSlot.kind === "video" && expandedSlot.playable ? (
+            <video
+              className="tenant-lightbox-img"
+              src={expandedSlot.url}
+              muted
+              loop
+              autoPlay
+              playsInline
+              controls
+            />
+          ) : (
+            <img className="tenant-lightbox-img" src={expandedSlot.url} alt="" />
+          )}
           <div className="lightbox-buy" onClick={(e) => e.stopPropagation()}>
             <p className="lightbox-title">
-              {expandedSlot.title || "Untitled"} · {formatPrice(priceCentsFor(expandedSlot))}
-              <span className="tap-pay-chip">✦ tap &amp; pay</span>
+              {expandedSlot.title || "Untitled"} ·{" "}
+              {expandedSlot.donateCents ? "Donate " : ""}
+              {formatPrice(priceCentsFor(expandedSlot))}
+              <span className="tap-pay-chip">
+                ✦ tap &amp; {expandedSlot.donateCents ? "donate" : "pay"}
+              </span>
             </p>
             <button type="button" className="quick-card-btn" onClick={() => setBuyHint(true)}>
-              pay with card — {formatPrice(priceCentsFor(expandedSlot))}
+              {expandedSlot.donateCents ? "donate" : "pay with card"} —{" "}
+              {formatPrice(priceCentsFor(expandedSlot))}
             </button>
           </div>
           <p className="lightbox-hint">tap the image to go back</p>

@@ -1318,15 +1318,15 @@ textarea {
 @keyframes heroDemoPulse {
   0%,
   100% {
-    background-color: #101012;
+    background-color: var(--tryit-demo-glow-a, #101012);
   }
   50% {
-    background-color: #1f1f24;
+    background-color: var(--tryit-demo-glow-b, #1f1f24);
   }
 }
 
 .marketing-hero-demo {
-  background-color: #17171b;
+  background-color: var(--tryit-demo-glow-a, #17171b);
   animation: heroDemoPulse 7s ease-in-out infinite;
   border: 1px solid var(--card-line);
   border-radius: 32px;
@@ -1454,6 +1454,13 @@ textarea {
   .marketing-hero-split .marketing-hero-demo {
     order: 2;
   }
+  /* Mobile only -- same "alive" pulse, just shifted much closer to true
+     black so the box behind the try-it phone doesn't read as bright
+     against the rest of the page on a small screen. */
+  :root {
+    --tryit-demo-glow-a: #050506;
+    --tryit-demo-glow-b: #0d0d10;
+  }
   /* Mobile only -- headline sits beside a small ambient phone instead of
      centered alone. Kicker + h1 take the left column, the ambient phone
      takes the right; the paragraph below spans both, full width. Only
@@ -1467,6 +1474,10 @@ textarea {
     column-gap: 1rem;
     align-items: center;
     text-align: left;
+    background: var(--card);
+    border: 1px solid var(--card-line);
+    border-radius: 24px;
+    padding: 1.75rem 1.5rem;
   }
   .marketing-hero-split .marketing-kicker,
   .marketing-hero-split .marketing-hero-copy h1 {
@@ -1491,7 +1502,11 @@ textarea {
   }
   .marketing-hero-split .marketing-sub {
     grid-column: 1 / -1;
-    text-align: center;
+    text-align: justify;
+    text-align-last: center;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    margin-top: 1rem;
     margin-left: auto;
     margin-right: auto;
   }
@@ -1518,6 +1533,25 @@ textarea {
   .marketing-cta-section-tight {
     justify-content: center;
     text-align: center;
+  }
+}
+
+/* Mobile only -- match the "No forced cropping" / "No platform-driven
+   quality loss" cards (plain .marketing-card in .marketing-grid) to the
+   centered look the compact ambient cards already have above them, and
+   tighten the gap between the two card groups so all four feel like one
+   evenly-spaced set instead of two separately-padded sections. A first
+   pass -- revisit the exact spacing once the rest of the mobile page is
+   settled. */
+@media (max-width: 640px) {
+  .marketing-card {
+    text-align: center;
+  }
+  .ambient-section {
+    padding-bottom: 1.5rem;
+  }
+  .marketing-section {
+    padding-top: 1.5rem;
   }
 }
 
@@ -2008,6 +2042,33 @@ textarea {
 .tryit-card-dragover {
   outline: 2px dashed var(--accent);
   outline-offset: -2px;
+}
+
+/* Static stand-in for the fixed donate example card (TryItDemo.js) --
+   there's no real sample video file to actually play, so this renders
+   the stand-in photo like any other card but adds a centered play badge
+   so it still reads as "video" at a glance, same visual language as the
+   crop toggle's translucent icon treatment above. */
+.tryit-video-static {
+  position: relative;
+}
+
+.tryit-play-badge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
 }
 
 /* ---------------------------------------------------------------------
