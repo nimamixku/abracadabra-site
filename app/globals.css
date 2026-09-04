@@ -2269,9 +2269,17 @@ textarea {
 }
 
 .tryit-phone .floating-buy-wrap {
+  /* Moved up near the top, right under the notch -- matching where this
+     same floating name/tap-and-pay chip sits on the real storefront
+     (StorefrontFeed.js's .floating-buy-wrap, top: 90px there). Down at
+     the bottom of this small phone frame it kept landing over whichever
+     photo happened to scroll underneath it, so when it switched to a
+     different card's name it looked like it belonged to the wrong
+     image. Anchored near the top instead, it reads as its own floating
+     shortcut rather than a caption on the photo behind it. */
   position: absolute;
-  top: auto;
-  bottom: 66px;
+  top: 36px;
+  bottom: auto;
   right: 12px;
   left: auto;
   width: auto;
