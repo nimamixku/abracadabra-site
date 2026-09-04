@@ -336,23 +336,24 @@ export default function TryItDemo({ variant = "interactive" }) {
       const isVideo = file.type.startsWith("video/");
       const isImage = file.type.startsWith("image/");
       if (!isVideo && !isImage) return;
-      const url = URL.createObjectURL(file);
-      const title = titleFromFilename(file.name);
       setSlots((prev) =>
-        prev.map((s) =>
-          s.id === id && !s.fixed
-            ? {
-                ...s,
-                url,
-                title,
-                priceInput: "",
-                crop: null,
-                kind: isVideo ? "video" : "photo",
-                playable: isVideo,
-                donateCents: null,
-              }
-            : s
-        )
+        prev.map((s) => {
+          if (s.id !== id) return s;
+          if (s.fixed) {
+            if (!isVideo) return s;
+            return { ...s, url: URL.createObjectURL(file), kind: "video", playable: true };
+          }
+          return {
+            ...s,
+            url: URL.createObjectURL(file),
+            title: titleFromFilename(file.name),
+            priceInput: "",
+            crop: null,
+            kind: isVideo ? "video" : "photo",
+            playable: isVideo,
+            donateCents: null,
+          };
+        })
       );
     },
     [isAmbient]
@@ -405,7 +406,7 @@ export default function TryItDemo({ variant = "interactive" }) {
   // lands within the window it's a double-click and buys instead.
   function handleSlotClick(slot) {
     if (isAmbient) return;
-    if (!slot.url) {
+    if (!slot.url || (slot.fixed && !slot.playable)) {
       pendingIdRef.current = slot.id;
       fileInputRef.current?.click();
       return;
@@ -520,14 +521,16 @@ export default function TryItDemo({ variant = "interactive" }) {
                 >
                   <span className="card-kind">{slot.kind === "video" ? "video" : "photo"}</span>
                   {slot.fixed ? (
-                    <div
-                      className="tenant-card-media-empty tryit-card-empty tryit-card-donate"
-                      aria-hidden="true"
-                    >
-                      <span className="tryit-play-badge" aria-hidden="true">
-                        ▶
-                      </span>
-                    </div>
+                    slot.playable ? (
+                      <video src={slot.url} muted loop autoPlay playsInline />
+                    ) : (
+                      <div
+                        className="tenant-card-media-empty tryit-card-empty tryit-card-donate"
+                        aria-hidden="true"
+                      >
+                        {!isAmbient && <span className="tryit-card-plus">+</span>}
+                      </div>
+                    )
                   ) : slot.url ? (
                     slot.kind === "video" ? (
                       <video
@@ -740,7 +743,7 @@ export default function TryItDemo({ variant = "interactive" }) {
           >
             <p className="floating-buy-title">
               <span className="floating-buy-title-text">{activeSlot.title || "Untitled"}</span>
-              <span className="tap-pay-chip">✦ tap &amp; pay</span>
+              <span className="tap-pay-chip">✦ tap &amp; {activeSlot.fixed ? "donate" : "pay"}</span>
             </p>
           </div>
         )}
@@ -822,7 +825,7 @@ export default function TryItDemo({ variant = "interactive" }) {
           >
             ✕
           </button>
-          {expandedSlot.fixed ? (
+          {expandedSlot.fixed && !expandedSlot.playable ? (
             <div className="tenant-lightbox-img lightbox-donate-placeholder" aria-hidden="true">
               <span className="tryit-play-badge" aria-hidden="true">
                 ▶

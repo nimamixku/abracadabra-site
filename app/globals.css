@@ -1454,12 +1454,17 @@ textarea {
   .marketing-hero-split .marketing-hero-demo {
     order: 2;
   }
-  /* Mobile only -- same "alive" pulse, just shifted much closer to true
-     black so the box behind the try-it phone doesn't read as bright
-     against the rest of the page on a small screen. */
+  /* Mobile only -- same "alive" pulse, still shifted close to true
+     black so the box doesn't read as bright against the rest of the
+     page on a small screen, but with a faint purple cast pulled from
+     the same --ink-to-accent gradient as the ABRACADABRA wordmark
+     itself (see .brand) -- just pulled way down in lightness instead
+     of the wordmark's bright, saturated purple. Barely-there on
+     purpose: just enough to read as "this box belongs to this site"
+     next to the flat black everywhere else, not a colored panel. */
   :root {
-    --tryit-demo-glow-a: #050506;
-    --tryit-demo-glow-b: #0d0d10;
+    --tryit-demo-glow-a: #0a0810;
+    --tryit-demo-glow-b: #150f1e;
   }
   /* Mobile only -- headline sits beside a small ambient phone instead of
      centered alone. Kicker + h1 take the left column, the ambient phone
