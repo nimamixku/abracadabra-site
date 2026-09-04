@@ -640,7 +640,19 @@ export default function TryItDemo({ variant = "interactive" }) {
                           </div>
                         </>
                       ) : slot.fixed ? (
-                        <p className="card-title">{slot.title}</p>
+                        <input
+                          className="card-title tryit-title-input"
+                          ref={(el) => {
+                            titleInputRefs.current[slot.id] = el;
+                          }}
+                          value={slot.title ?? ""}
+                          onChange={(e) => updateSlotField(slot.id, "title", e.target.value)}
+                          onFocus={() => setFocusId(slot.id)}
+                          onBlur={() => setFocusId((cur) => (cur === slot.id ? null : cur))}
+                          placeholder="Add a title"
+                          maxLength={60}
+                          aria-label="Title"
+                        />
                       ) : (
                         <>
                           <input
