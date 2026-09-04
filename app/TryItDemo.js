@@ -41,15 +41,22 @@ const CROP_CYCLE = [null, "square", "portrait"];
 
 // One fixed, always-there example card in the interactive demo -- not
 // something a visitor drops in, edits, or replaces. Its only job is
-// showing what a donate-enabled video post looks like in the feed, so a
-// visitor understands the option exists without building it themselves.
-// Uses a real sample photo as a stand-in for video art (rendered with a
-// play badge -- see .tryit-video-static in globals.css) since there's no
-// real sample video file to drop in here. Lives only in the interactive
-// variant -- the passive ambient loop stays exactly as it was.
-const DONATE_SAMPLE_URL = "/previews/cafe-du-monde.jpg";
+// showing what a donate-enabled video post looks like in the feed and
+// letting a visitor try the "give more" interaction, so they understand
+// the option exists without building it themselves. Rendered with the
+// same dark placeholder + play badge as an empty slot (never a real
+// sample photo standing in for video) -- there's no real sample video to
+// show, and a placeholder reads more honestly as "here's the idea" than
+// a real photo pretending to be footage. Lives only in the interactive
+// variant -- the passive ambient loop stays exactly as it was. Its "tap &
+// give" language lives entirely inside this one card's own buy-row/
+// buy-hint below -- the shared floating "tap & pay" chip and the rest of
+// the feed never change wording for this card's sake.
+const DONATE_PLACEHOLDER_URL = "__donate_example__"; // sentinel, never used as a media src
 const DONATE_SAMPLE_TITLE = "Evening Session";
+const DONATE_SAMPLE_DESC = "Recorded live in the studio tonight — free to watch, always.";
 const DONATE_SUGGESTED_CENTS = 1200;
+const GIVE_MORE_STEP_CENTS = 300;
 
 const AMBIENT_SAMPLE_POOL = [
   "flowers-and-roof.jpg",
@@ -134,7 +141,7 @@ function emptySlots(count, opts = {}) {
     if (seedDonate && i === 0) {
       return {
         id: i,
-        url: DONATE_SAMPLE_URL,
+        url: DONATE_PLACEHOLDER_URL,
         title: DONATE_SAMPLE_TITLE,
         priceInput: "",
         crop: null,
@@ -169,6 +176,11 @@ export default function TryItDemo({ variant = "interactive" }) {
   const [activeId, setActiveId] = useState(null);
   const [themeBg, setThemeBg] = useState(DEFAULT_THEME_BG);
   const [themeInk, setThemeInk] = useState(DEFAULT_THEME_INK);
+  // The donate example's own adjustable amount -- only ever relevant to
+  // that one fixed card, so it's simpler top-level state than plumbing a
+  // per-piece amount through the generic slots array.
+  const [donateAmountCents, setDonateAmountCents] = useState(DONATE_SUGGESTED_CENTS);
+  const [donateGiveMoreOpen, setDonateGiveMoreOpen] = useState(false);
   // Crop toggle visibility: whichever card the mouse is currently over
   // (desktop) OR whichever card has a title/price field focused (mobile,
   // where there's no hover) -- shows for either, hides once neither
@@ -434,6 +446,8 @@ export default function TryItDemo({ variant = "interactive" }) {
     setExpandedId(null);
     setBuyHint(false);
     setActiveId(null);
+    setDonateAmountCents(DONATE_SUGGESTED_CENTS);
+    setDonateGiveMoreOpen(false);
   }
 
   const expandedSlot = !isAmbient && expandedId != null ? slots.find((s) => s.id === expandedId) : null;
@@ -505,41 +519,31 @@ export default function TryItDemo({ variant = "interactive" }) {
                   onDrop={(e) => handleSlotDrop(slot.id, e)}
                 >
                   <span className="card-kind">{slot.kind === "video" ? "video" : "photo"}</span>
-                  {slot.url ? (
+                  {slot.fixed ? (
+                    <div
+                      className="tenant-card-media-empty tryit-card-empty tryit-card-donate"
+                      aria-hidden="true"
+                    >
+                      <span className="tryit-play-badge" aria-hidden="true">
+                        ▶
+                      </span>
+                    </div>
+                  ) : slot.url ? (
                     slot.kind === "video" ? (
-                      slot.playable ? (
-                        <video
-                          src={slot.url}
-                          muted
-                          loop
-                          autoPlay
-                          playsInline
-                          style={
-                            slot.crop === "square"
-                              ? { aspectRatio: "1 / 1", objectFit: "cover" }
-                              : slot.crop === "portrait"
-                              ? { aspectRatio: "4 / 5", objectFit: "cover" }
-                              : undefined
-                          }
-                        />
-                      ) : (
-                        <div className="tryit-video-static">
-                          <img
-                            src={slot.url}
-                            alt=""
-                            style={
-                              slot.crop === "square"
-                                ? { aspectRatio: "1 / 1", objectFit: "cover" }
-                                : slot.crop === "portrait"
-                                ? { aspectRatio: "4 / 5", objectFit: "cover" }
-                                : undefined
-                            }
-                          />
-                          <span className="tryit-play-badge" aria-hidden="true">
-                            ▶
-                          </span>
-                        </div>
-                      )
+                      <video
+                        src={slot.url}
+                        muted
+                        loop
+                        autoPlay
+                        playsInline
+                        style={
+                          slot.crop === "square"
+                            ? { aspectRatio: "1 / 1", objectFit: "cover" }
+                            : slot.crop === "portrait"
+                            ? { aspectRatio: "4 / 5", objectFit: "cover" }
+                            : undefined
+                        }
+                      />
                     ) : (
                       <img
                         src={slot.url}
@@ -609,17 +613,15 @@ export default function TryItDemo({ variant = "interactive" }) {
                           non-interactive plain text like a real card,
                           never an <input>, or anything typed into it would
                           get wiped out a couple seconds later by the loop. */}
-                      {isAmbient || slot.fixed ? (
+                      {isAmbient ? (
                         <>
                           <p className="card-title">{slot.title}</p>
                           <div className="card-price-col">
-                            <p className="card-price">
-                              {slot.donateCents
-                                ? `Donate $${slot.donateCents / 100}`
-                                : formatPrice(DEMO_PRICE_CENTS)}
-                            </p>
+                            <p className="card-price">{formatPrice(DEMO_PRICE_CENTS)}</p>
                           </div>
                         </>
+                      ) : slot.fixed ? (
+                        <p className="card-title">{slot.title}</p>
                       ) : (
                         <>
                           <input
@@ -650,6 +652,65 @@ export default function TryItDemo({ variant = "interactive" }) {
                         </>
                       )}
                     </div>
+
+                    {!isAmbient && slot.fixed && (
+                      <>
+                        <p className="card-desc">{DONATE_SAMPLE_DESC}</p>
+                        <div className="buy-row">
+                          <button
+                            type="button"
+                            className="buy-btn"
+                            onClick={() => setBuyHint(true)}
+                          >
+                            Donate {formatPrice(donateAmountCents)}
+                          </button>
+                          <span className="buy-hint">✦ tap &amp; give</span>
+                        </div>
+                        {donateGiveMoreOpen && (
+                          <div className="tryit-give-more-stepper">
+                            <button
+                              type="button"
+                              className="tryit-step-btn"
+                              aria-label="Decrease donation amount"
+                              onClick={() =>
+                                setDonateAmountCents((c) =>
+                                  Math.max(GIVE_MORE_STEP_CENTS, c - GIVE_MORE_STEP_CENTS)
+                                )
+                              }
+                            >
+                              −
+                            </button>
+                            <span className="tryit-amount-readout">
+                              your donation · {formatPrice(donateAmountCents)}
+                            </span>
+                            <button
+                              type="button"
+                              className="tryit-step-btn"
+                              aria-label="Increase donation amount"
+                              onClick={() =>
+                                setDonateAmountCents((c) => c + GIVE_MORE_STEP_CENTS)
+                              }
+                            >
+                              +
+                            </button>
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          className="tryit-give-more-link"
+                          onClick={() => {
+                            setDonateGiveMoreOpen((open) => {
+                              if (open) setDonateAmountCents(DONATE_SUGGESTED_CENTS);
+                              return !open;
+                            });
+                          }}
+                        >
+                          {donateGiveMoreOpen
+                            ? `never mind — back to ${formatPrice(DONATE_SUGGESTED_CENTS)}`
+                            : "give more"}
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -679,7 +740,7 @@ export default function TryItDemo({ variant = "interactive" }) {
           >
             <p className="floating-buy-title">
               <span className="floating-buy-title-text">{activeSlot.title || "Untitled"}</span>
-              <span className="tap-pay-chip">✦ tap &amp; {activeSlot.donateCents ? "donate" : "pay"}</span>
+              <span className="tap-pay-chip">✦ tap &amp; pay</span>
             </p>
           </div>
         )}
@@ -761,7 +822,13 @@ export default function TryItDemo({ variant = "interactive" }) {
           >
             ✕
           </button>
-          {expandedSlot.kind === "video" && expandedSlot.playable ? (
+          {expandedSlot.fixed ? (
+            <div className="tenant-lightbox-img lightbox-donate-placeholder" aria-hidden="true">
+              <span className="tryit-play-badge" aria-hidden="true">
+                ▶
+              </span>
+            </div>
+          ) : expandedSlot.kind === "video" ? (
             <video
               className="tenant-lightbox-img"
               src={expandedSlot.url}
@@ -777,15 +844,12 @@ export default function TryItDemo({ variant = "interactive" }) {
           <div className="lightbox-buy" onClick={(e) => e.stopPropagation()}>
             <p className="lightbox-title">
               {expandedSlot.title || "Untitled"} ·{" "}
-              {expandedSlot.donateCents ? "Donate " : ""}
-              {formatPrice(priceCentsFor(expandedSlot))}
-              <span className="tap-pay-chip">
-                ✦ tap &amp; {expandedSlot.donateCents ? "donate" : "pay"}
-              </span>
+              {formatPrice(expandedSlot.fixed ? donateAmountCents : priceCentsFor(expandedSlot))}
+              <span className="tap-pay-chip">✦ tap &amp; pay</span>
             </p>
             <button type="button" className="quick-card-btn" onClick={() => setBuyHint(true)}>
-              {expandedSlot.donateCents ? "donate" : "pay with card"} —{" "}
-              {formatPrice(priceCentsFor(expandedSlot))}
+              pay with card —{" "}
+              {formatPrice(expandedSlot.fixed ? donateAmountCents : priceCentsFor(expandedSlot))}
             </button>
           </div>
           <p className="lightbox-hint">tap the image to go back</p>

@@ -1866,6 +1866,80 @@ textarea {
   color: rgba(255, 255, 255, 0.9);
 }
 
+/* Donate example card (TryItDemo.js): the "give more" link sits right
+   under its .buy-btn, same quiet under-stated treatment as the real
+   site's secondary actions -- a plain underlined line, not a button,
+   so the primary Donate button stays the only thing that reads as the
+   main action. */
+.tryit-give-more-link {
+  display: block;
+  width: 100%;
+  text-align: center;
+  margin-top: 8px;
+  background: none;
+  border: none;
+  padding: 4px 0 0;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--ink-dim);
+  text-decoration: underline;
+  text-decoration-color: rgba(165, 163, 171, 0.4);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.tryit-give-more-link:hover {
+  color: var(--accent);
+}
+
+.tryit-give-more-stepper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.tryit-step-btn {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  border: 1px solid var(--card-line);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 16px;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tryit-step-btn:hover {
+  border-color: var(--accent-dim);
+}
+
+.tryit-amount-readout {
+  flex: 1;
+  font-size: 13px;
+  color: var(--ink-dim);
+  text-transform: lowercase;
+}
+
+/* Lightbox's version of the same fixed donate card -- no real media to
+   show full-screen, so it's the same dark placeholder + play badge as
+   the card itself, sized like a real preview photo would be instead of
+   the card's own smaller 4/5 box. */
+.lightbox-donate-placeholder {
+  width: min(80vw, 360px);
+  aspect-ratio: 4 / 5;
+  background: linear-gradient(145deg, #1a1a1d, #0b0b0d);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
 /* Dashboard reuses the same toggle (ProductManager.js), but top-right is
    already taken there by the draft badge (.dash-draft-badge) -- move it
    to the opposite corner so the two never overlap on an expanded draft. */
@@ -2044,12 +2118,12 @@ textarea {
   outline-offset: -2px;
 }
 
-/* Static stand-in for the fixed donate example card (TryItDemo.js) --
-   there's no real sample video file to actually play, so this renders
-   the stand-in photo like any other card but adds a centered play badge
-   so it still reads as "video" at a glance, same visual language as the
-   crop toggle's translucent icon treatment above. */
-.tryit-video-static {
+/* Centered play badge for the fixed donate example card (TryItDemo.js) --
+   sits on top of the same dark placeholder background used for an empty
+   slot, so a card that has no real video to show still reads as "video"
+   at a glance, same visual language as the crop toggle's translucent
+   icon treatment above. */
+.tryit-card-donate {
   position: relative;
 }
 
