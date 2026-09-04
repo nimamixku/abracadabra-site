@@ -188,6 +188,15 @@ export default function TryItDemo({ variant = "interactive" }) {
   const [hoverId, setHoverId] = useState(null);
   const [focusId, setFocusId] = useState(null);
   const fileInputRef = useRef(null);
+  // A second, video-only picker just for the fixed/donate slot (it only
+  // ever wants a video, never a photo -- see fillSlot). Splitting this
+  // out from the shared image+video input matters on iOS: Safari shows
+  // its fast inline picker (choose, checkmark, land right back in the
+  // demo) for a single-type accept, but falls back to the heavier
+  // "leaves the page" Photos app flow when accept mixes image and video
+  // together -- which is exactly the mismatch reported (photo slots
+  // feel instant, the donate slot's video picker doesn't).
+  const videoInputRef = useRef(null);
   const pendingIdRef = useRef(null);
   const screenRef = useRef(null);
   const cardRefs = useRef({});
@@ -288,6 +297,18 @@ export default function TryItDemo({ variant = "interactive" }) {
         // the max across ALL known ratios, not only this batch.
         for (const entry of entries) {
           ratios[Number(entry.target.dataset.slotId)] = entry.intersectionRatio;
+          // Pause any card's video the moment it's fully scrolled off,
+          // resume it once any part of it is back in view -- several
+          // autoplaying videos decoding at once (some possibly still
+          // off-screen) is what actually slows the page down, not the
+          // video format/network itself (a dropped file plays from an
+          // in-memory blob, nothing to fetch). Muted+loop stays as-is;
+          // this only starts/stops decode work based on visibility.
+          const videoEl = entry.target.querySelector("video");
+          if (videoEl) {
+            if (entry.intersectionRatio > 0) videoEl.play?.().catch(() => {});
+            else videoEl.pause?.();
+          }
         }
         let bestId = null;
         let bestRatio = 0;
@@ -407,7 +428,11 @@ export default function TryItDemo({ variant = "interactive" }) {
     if (isAmbient) return;
     if (!slot.url || (slot.fixed && !slot.playable)) {
       pendingIdRef.current = slot.id;
-      fileInputRef.current?.click();
+      if (slot.fixed) {
+        videoInputRef.current?.click();
+      } else {
+        fileInputRef.current?.click();
+      }
       return;
     }
     if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
@@ -781,13 +806,22 @@ export default function TryItDemo({ variant = "interactive" }) {
         )}
 
         {!isAmbient && (
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,video/*"
-            hidden
-            onChange={handleFileChosen}
-          />
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*"
+              hidden
+              onChange={handleFileChosen}
+            />
+            <input
+              ref={videoInputRef}
+              type="file"
+              accept="video/*"
+              hidden
+              onChange={handleFileChosen}
+            />
+          </>
         )}
       </div>
 
