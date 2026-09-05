@@ -2999,3 +2999,176 @@ textarea {
     margin: 0;
   }
 }
+
+
+/* A cropped preview renders as a plain div with a background-image
+   (see lib/cropStyle.js) instead of an <img>/<video> tag, since only
+   background-size/background-position can show an arbitrary crop
+   rectangle responsively -- same sizing as the natural <img>/<video>
+   case above (.tenant-card-media img, .tenant-card-media video) so
+   switching between natural and cropped never shifts the card's layout
+   rules, just what's actually visible inside them. */
+.tenant-card-media .tenant-card-cropped {
+  display: block;
+  width: 100%;
+  max-height: 78vh;
+  cursor: default;
+  background-color: #000;
+}
+
+/* ---------------------------------------------------------------------
+   Crop editor (app/CropEditor.js) -- shared by the try-it demo and the
+   real dashboard. Same visual language as the existing lightbox
+   (.lightbox-overlay) rather than a new look: dark overlay, centered
+   card, quiet type. The box itself uses a giant box-shadow to darken
+   everything OUTSIDE the selection without a second overlay element --
+   the selection area itself stays perfectly clear. */
+.crop-editor-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.crop-editor-panel {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--card-line);
+  border-radius: 20px;
+  padding: 20px;
+  max-width: 92vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.crop-editor-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  border-radius: 100px;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.crop-editor-frame {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  touch-action: none;
+}
+
+.crop-editor-img {
+  display: block;
+  max-width: min(78vw, 460px);
+  max-height: 56vh;
+  width: auto;
+  height: auto;
+  border-radius: 6px;
+}
+
+.crop-editor-box {
+  position: absolute;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+  border: 1.5px solid var(--accent);
+  cursor: move;
+  touch-action: none;
+}
+
+.crop-editor-size {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  padding: 3px 7px;
+  border-radius: 100px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.crop-editor-handle {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  margin: -9px;
+  background: var(--accent);
+  border: 2px solid #fff;
+  border-radius: 100px;
+  touch-action: none;
+}
+
+.crop-editor-handle-nw {
+  top: 0;
+  left: 0;
+  cursor: nwse-resize;
+}
+.crop-editor-handle-ne {
+  top: 0;
+  right: 0;
+  margin-right: -9px;
+  cursor: nesw-resize;
+}
+.crop-editor-handle-sw {
+  bottom: 0;
+  left: 0;
+  margin-bottom: -9px;
+  cursor: nesw-resize;
+}
+.crop-editor-handle-se {
+  bottom: 0;
+  right: 0;
+  margin-bottom: -9px;
+  margin-right: -9px;
+  cursor: nwse-resize;
+}
+
+.crop-editor-hint {
+  margin: 0;
+  max-width: 380px;
+  text-align: center;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-dim);
+}
+
+.crop-editor-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.crop-editor-reset,
+.crop-editor-use {
+  padding: 8px 16px;
+  border-radius: 100px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.crop-editor-reset {
+  background: none;
+  border: 1px solid var(--card-line);
+  color: var(--ink-dim);
+}
+
+.crop-editor-use {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: #0b0b0d;
+  font-weight: 600;
+}

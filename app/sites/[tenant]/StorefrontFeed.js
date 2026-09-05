@@ -17,6 +17,7 @@ import {
   PaymentRequestButtonElement,
   CardElement,
 } from "@stripe/react-stripe-js";
+import { cropBackgroundStyle } from "@/lib/cropStyle";
 
 // The buyer-facing feed for one tenant's shop -- ported from the original
 // single-tenant app/page.js, which is why several comments below still
@@ -1080,14 +1081,15 @@ function DonateSection({ tenantSlug, product, lazy = true }) {
 // image here is never force-cropped by default (see the plan's "No forced
 // cropping, ever" principle) -- it keeps its own natural shape, with only
 // a soft max-height guardrail via CSS. An artist can still opt a specific
-// product into a fixed crop from the dashboard (product.details.crop --
-// "square" or "portrait"); when set, that crop applies here, but the
-// lightbox (tap/click to expand) always shows the whole, uncropped
-// original regardless, same as the original single-tenant site's own
-// tap-to-expand behavior. When product_files.width_px/height_px are
-// captured (Task #23, not built yet), the natural (uncropped) case's
-// aspect-ratio locks in ahead of time and prevents layout shift; until
-// then it just renders at its natural size once the image loads.
+// product into an exact custom crop from the dashboard's own CropEditor
+// (product.details.crop -- see lib/cropStyle.js, an exact rectangle the
+// artist drew over their own photo, never a preset shape); when set, that
+// crop applies here, but the lightbox (tap/click to expand) always shows
+// the whole, uncropped original regardless, same as the original
+// single-tenant site's own tap-to-expand behavior. When
+// product_files.width_px/height_px are captured, the natural (uncropped)
+// case's aspect-ratio locks in ahead of time and prevents layout shift;
+// until then it just renders at its natural size once the image loads.
 function ProductCard({ tenantSlug, product }) {
   const sizes = Array.isArray(product.details?.sizes) ? product.details.sizes : [];
   const [selectedSize, setSelectedSize] = useState(sizes[0] || null);
@@ -1113,7 +1115,7 @@ function ProductCard({ tenantSlug, product }) {
 
   const previewImage = product.files?.preview_image;
   const previewClip = product.files?.preview_clip;
-  const crop = product.details?.crop; // undefined (natural, default) | "square" | "portrait"
+  const crop = product.details?.crop; // undefined/null = natural (default); otherwise an exact { x, y, w, h, srcW, srcH } rectangle
   const isVideo = product.type === "video";
   const hasVideoFile = Boolean(product.files?.video);
   const donateEnabled = isVideo && Boolean(product.details?.donate_enabled);
@@ -1173,17 +1175,23 @@ function ProductCard({ tenantSlug, product }) {
           ) : (
             <div className="tenant-card-media-empty" aria-hidden="true" />
           )
+        ) : previewImage && crop ? (
+          <div
+            className="tenant-card-cropped"
+            role="img"
+            aria-label={product.title}
+            style={{
+              ...cropBackgroundStyle(crop),
+              backgroundImage: `url(/api/preview?productId=${product.id}&kind=preview_image)`,
+            }}
+          />
         ) : previewImage ? (
           <img
             src={`/api/preview?productId=${product.id}&kind=preview_image`}
             alt={product.title}
             loading="lazy"
             style={
-              crop === "square"
-                ? { aspectRatio: "1 / 1", objectFit: "cover" }
-                : crop === "portrait"
-                ? { aspectRatio: "4 / 5", objectFit: "cover" }
-                : previewImage.width_px && previewImage.height_px
+              previewImage.width_px && previewImage.height_px
                 ? { aspectRatio: `${previewImage.width_px} / ${previewImage.height_px}` }
                 : undefined
             }

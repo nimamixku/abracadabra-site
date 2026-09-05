@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import CropEditor from "./CropEditor";
+import { cropBackgroundStyle } from "@/lib/cropStyle";
 
 // The landing page's "try it before you sign up" demo (see the plan's
 // design ethos section). This deliberately reuses the REAL tenant
@@ -35,9 +37,10 @@ const SLOT_COUNT = 5;
 // the actual file a buyer downloads, and never the full uncropped view
 // behind "expand" either (that always shows the real preview image as-is,
 // same as the real storefront's lightbox). Every new photo starts at
-// "natural" (no crop, null here) -- an artist opts into a crop, it's
-// never forced by default.
-const CROP_CYCLE = [null, "square", "portrait"];
+// "natural" (no crop, null) -- an artist opts into a crop via CropEditor,
+// it's never forced by default. See lib/cropStyle.js for the crop shape
+// itself: { x, y, w, h, srcW, srcH }, all fractions of the photo's own
+// size, not a preset word.
 
 // One fixed, always-there example card in the interactive demo -- not
 // something a visitor drops in, edits, or replaces. Its only job is
@@ -187,6 +190,9 @@ export default function TryItDemo({ variant = "interactive" }) {
   // rendering, so hovering and editing never fight each other or flicker.
   const [hoverId, setHoverId] = useState(null);
   const [focusId, setFocusId] = useState(null);
+  // Which slot's photo the crop editor overlay is currently open for --
+  // null means closed. Only one can be open at a time.
+  const [cropEditorId, setCropEditorId] = useState(null);
   const fileInputRef = useRef(null);
   // A second, video-only picker just for the fixed/donate slot (it only
   // ever wants a video, never a photo -- see fillSlot). Splitting this
@@ -379,20 +385,13 @@ export default function TryItDemo({ variant = "interactive" }) {
     [isAmbient]
   );
 
-  // Cycles a piece's own preview crop -- natural -> square -> portrait ->
-  // natural. A tap-to-cycle instead of a menu, since there are only three
-  // options and this is meant to be as unobtrusive as possible (see the
-  // crop toggle button below, which only shows while this specific card
-  // is actively being edited).
-  function cycleCrop(id) {
-    setSlots((prev) =>
-      prev.map((s) => {
-        if (s.id !== id) return s;
-        const idx = CROP_CYCLE.indexOf(s.crop ?? null);
-        const next = CROP_CYCLE[(idx + 1) % CROP_CYCLE.length];
-        return { ...s, crop: next };
-      })
-    );
+  // Applies whatever exact crop rectangle the artist drew in CropEditor
+  // (or null, if they reset to the full photo) to just this one slot --
+  // every other card's own crop is untouched, same as every other
+  // per-photo setting here.
+  function handleCropSave(id, crop) {
+    setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, crop } : s)));
+    setCropEditorId(null);
   }
 
   // Editable title/price, typed right on the card -- see titleFromFilename
@@ -573,32 +572,18 @@ export default function TryItDemo({ variant = "interactive" }) {
                     )
                   ) : slot.url ? (
                     slot.kind === "video" ? (
-                      <video
-                        src={slot.url}
-                        muted
-                        loop
-                        autoPlay
-                        playsInline
-                        style={
-                          slot.crop === "square"
-                            ? { aspectRatio: "1 / 1", objectFit: "cover" }
-                            : slot.crop === "portrait"
-                            ? { aspectRatio: "4 / 5", objectFit: "cover" }
-                            : undefined
-                        }
+                      // Crop is a photo-only tool -- a video preview always
+                      // plays at its own natural shape.
+                      <video src={slot.url} muted loop autoPlay playsInline />
+                    ) : slot.crop ? (
+                      <div
+                        className="tenant-card-cropped"
+                        role="img"
+                        aria-label=""
+                        style={{ ...cropBackgroundStyle(slot.crop), backgroundImage: `url(${slot.url})` }}
                       />
                     ) : (
-                      <img
-                        src={slot.url}
-                        alt=""
-                        style={
-                          slot.crop === "square"
-                            ? { aspectRatio: "1 / 1", objectFit: "cover" }
-                            : slot.crop === "portrait"
-                            ? { aspectRatio: "4 / 5", objectFit: "cover" }
-                            : undefined
-                        }
-                      />
+                      <img src={slot.url} alt="" />
                     )
                   ) : (
                     <div className="tenant-card-media-empty tryit-card-empty" aria-hidden="true">
@@ -625,27 +610,32 @@ export default function TryItDemo({ variant = "interactive" }) {
                       <span className="expand-label">expand</span>
                     </button>
                   )}
-                  {/* Crop toggle -- only while this specific card is being
-                      edited (title/price focused), never a permanent
-                      fixture on the card. One tap cycles natural -> square
-                      -> portrait -> natural; the photo's own shape
-                      changing is the feedback, no label needed. Preview
-                      only -- never touches the full-res file a buyer
-                      downloads, and "expand" always shows the real,
-                      uncropped preview regardless of this setting. */}
-                  {!isAmbient && slot.url && !slot.fixed && (hoverId === slot.id || focusId === slot.id) && (
-                    <button
-                      type="button"
-                      className="tryit-crop-toggle"
-                      aria-label="Change photo crop"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        cycleCrop(slot.id);
-                      }}
-                    >
-                      ⋯
-                    </button>
-                  )}
+                  {/* Crop tool trigger -- only while this specific card is
+                      being edited (title/price focused), never a permanent
+                      fixture on the card, and only for photos (a video
+                      preview always plays natural). Opens CropEditor with
+                      an exact, draggable box over the artist's own photo --
+                      not a menu of preset shapes. Preview only -- never
+                      touches the full-res file a buyer downloads, and
+                      "expand" always shows the real, uncropped preview
+                      regardless of this setting. */}
+                  {!isAmbient &&
+                    slot.url &&
+                    !slot.fixed &&
+                    slot.kind !== "video" &&
+                    (hoverId === slot.id || focusId === slot.id) && (
+                      <button
+                        type="button"
+                        className="tryit-crop-toggle"
+                        aria-label="Crop this photo"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCropEditorId(slot.id);
+                        }}
+                      >
+                        ⋯
+                      </button>
+                    )}
                 </div>
                 {slot.url && (
                   <div className="card-body">
@@ -927,6 +917,19 @@ export default function TryItDemo({ variant = "interactive" }) {
           </div>
         </div>
       )}
+
+      {!isAmbient && cropEditorId != null && (() => {
+        const cropSlot = slots.find((s) => s.id === cropEditorId);
+        if (!cropSlot?.url) return null;
+        return (
+          <CropEditor
+            imageUrl={cropSlot.url}
+            initialCrop={cropSlot.crop}
+            onSave={(crop) => handleCropSave(cropSlot.id, crop)}
+            onCancel={() => setCropEditorId(null)}
+          />
+        );
+      })()}
     </div>
   );
 }

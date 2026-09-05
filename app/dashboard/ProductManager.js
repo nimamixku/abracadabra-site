@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import CropEditor from "../CropEditor";
+import { cropBackgroundStyle } from "@/lib/cropStyle";
 
 const TYPE_LABELS = {
   digital_image: "Digital image",
@@ -143,7 +145,10 @@ function ProductCard({ product, tenantSlug, payoutsActive, onChanged, onRemoved 
   const [shipping, setShipping] = useState(
     product.details?.shipping_cents ? (product.details.shipping_cents / 100).toFixed(2) : ""
   );
-  const [crop, setCrop] = useState(product.details?.crop || "natural");
+  // { x, y, w, h, srcW, srcH } (fractions of the photo's own size) or
+  // null for natural/no crop -- see lib/cropStyle.js. Never a preset word.
+  const [crop, setCrop] = useState(product.details?.crop || null);
+  const [cropEditorOpen, setCropEditorOpen] = useState(false);
   const [donateEnabled, setDonateEnabled] = useState(Boolean(product.details?.donate_enabled));
   const [donateSuggested, setDonateSuggested] = useState(
     product.details?.donate_suggested_cents
@@ -156,7 +161,6 @@ function ProductCard({ product, tenantSlug, payoutsActive, onChanged, onRemoved 
   const [moreOpen, setMoreOpen] = useState(false);
   const primaryInputRef = useRef(null);
 
-  const CROP_ORDER = ["natural", "square", "portrait"];
   const primaryKind = primaryKindFor(product.type);
   const files = product.files || {};
   const hasPrimary = Boolean(files[primaryKind]);
@@ -217,7 +221,7 @@ function ProductCard({ product, tenantSlug, payoutsActive, onChanged, onRemoved 
         description: eff.description,
         priceCents: Number.isFinite(priceInt) ? priceInt : 0,
         active: eff.active,
-        crop: eff.crop === "natural" ? null : eff.crop,
+        crop: eff.crop || null,
         ...(product.type === "physical"
           ? { sizes: eff.sizes, shippingCents: Math.round(Number.parseFloat(eff.shipping || "0") * 100) }
           : {}),
@@ -243,10 +247,13 @@ function ProductCard({ product, tenantSlug, payoutsActive, onChanged, onRemoved 
     }
   }
 
-  function cycleCrop() {
-    const next = CROP_ORDER[(CROP_ORDER.indexOf(crop) + 1) % CROP_ORDER.length];
-    setCrop(next);
-    persist({ crop: next });
+  // Called when the artist finishes with CropEditor -- an exact rectangle
+  // they drew over their own photo, or null if they reset to the full
+  // photo. Only ever touches this one product's own crop.
+  function handleCropSave(nextCrop) {
+    setCrop(nextCrop);
+    setCropEditorOpen(false);
+    persist({ crop: nextCrop });
   }
 
   async function remove() {
@@ -301,27 +308,36 @@ function ProductCard({ product, tenantSlug, payoutsActive, onChanged, onRemoved 
               playsInline
               onClick={(e) => e.stopPropagation()}
             />
-          ) : (
-            <img
-              src={`/api/preview?productId=${product.id}&kind=preview_image`}
-              alt={product.title || ""}
-              style={crop === "natural" ? { objectFit: "contain" } : undefined}
+          ) : crop ? (
+            <div
+              className="tenant-card-cropped"
+              role="img"
+              aria-label={product.title || ""}
+              style={{
+                ...cropBackgroundStyle(crop),
+                backgroundImage: `url(/api/preview?productId=${product.id}&kind=preview_image)`,
+              }}
             />
+          ) : (
+            <img src={`/api/preview?productId=${product.id}&kind=preview_image`} alt={product.title || ""} />
           )
         ) : (
           <div className={mediaEmptyClass} aria-hidden="true">
             <span className="tryit-card-plus">+</span>
           </div>
         )}
-        {/* Crop toggle (photos) / replace button (video) -- the two never
-            coexist on the same card, so they safely share one slot
-            (bottom-right, since top-right is the draft badge). */}
+        {/* Crop tool trigger (photos) / replace button (video) -- the two
+            never coexist on the same card, so they safely share one slot
+            (bottom-right, since top-right is the draft badge). Opens the
+            same exact-rectangle CropEditor the try-it demo uses -- never a
+            preset shape, and this never touches the full-res file a buyer
+            downloads. */}
         {hasPrimary && product.type !== "video" && (
           <button
             type="button"
             className="dash-crop-toggle"
-            aria-label="Change photo crop"
-            onClick={(e) => { e.stopPropagation(); cycleCrop(); }}
+            aria-label="Crop this photo"
+            onClick={(e) => { e.stopPropagation(); setCropEditorOpen(true); }}
           >
             ⋯
           </button>
@@ -496,7 +512,11 @@ function ProductCard({ product, tenantSlug, payoutsActive, onChanged, onRemoved 
             )}
             {product.type !== "video" && (
               <p style={{ color: "var(--ink-dim)", fontSize: "0.78rem", margin: 0 }}>
-                Photo crop: {crop === "natural" ? "natural (no crop)" : crop} — tap the ⋯ on the photo above to change it.
+                Photo crop:{" "}
+                {crop
+                  ? `custom — ${Math.round(crop.w * 100)}% × ${Math.round(crop.h * 100)}% of the photo`
+                  : "natural (no crop)"}{" "}
+                — tap the ⋯ on the photo above to change it.
               </p>
             )}
             <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
@@ -517,6 +537,15 @@ function ProductCard({ product, tenantSlug, payoutsActive, onChanged, onRemoved 
         )}
         {error && <p style={{ color: "#e08a8a", fontSize: "0.85rem", marginTop: "0.4rem" }}>{error}</p>}
       </div>
+
+      {cropEditorOpen && hasPrimary && (
+        <CropEditor
+          imageUrl={`/api/preview?productId=${product.id}&kind=preview_image`}
+          initialCrop={crop}
+          onSave={handleCropSave}
+          onCancel={() => setCropEditorOpen(false)}
+        />
+      )}
     </div>
   );
 }

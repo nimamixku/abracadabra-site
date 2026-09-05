@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionTenant } from "@/lib/auth";
 import { query } from "@/lib/db";
-
-const CROP_OPTIONS = new Set(["square", "portrait"]);
+import { sanitizeCrop } from "@/lib/cropStyle";
 
 // Finishing a draft (see POST .../products' `draft` flag) or editing an
 // already-published product -- same endpoint either way, since the only
@@ -102,7 +101,8 @@ export async function PATCH(req, { params }) {
     }
   }
   if (crop !== undefined) {
-    if (CROP_OPTIONS.has(crop)) details.crop = crop;
+    const sanitized = sanitizeCrop(crop);
+    if (sanitized) details.crop = sanitized;
     else delete details.crop;
     detailsChanged = true;
   }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionTenant } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { sanitizeCrop } from "@/lib/cropStyle";
 
 // Phase 3: generalized beyond the v1 digital_image-only version -- now
 // accepts any of the three launched types. New types still don't need a
@@ -113,12 +114,15 @@ export async function POST(req) {
   // piece itself for digital_image, a product shot for physical) -- the
   // storefront's default is to never force-crop it (see the plan's "No
   // forced cropping, ever" principle), but an artist can opt a specific
-  // product into a fixed crop instead, same idea as choosing a crop when
-  // posting to social media. Left out of `details` entirely when not set,
-  // so "natural" isn't a stored value the storefront has to special-case.
-  const CROP_OPTIONS = new Set(["square", "portrait"]);
-  if (CROP_OPTIONS.has(crop)) {
-    details.crop = crop;
+  // product into an exact custom crop instead (see lib/cropStyle.js),
+  // same idea as choosing a crop when posting to social media. Left out
+  // of `details` entirely when not set, so "natural" isn't a stored value
+  // the storefront has to special-case. In practice crop is never sent
+  // this early anyway -- there's no photo yet at draft-creation time --
+  // but this stays consistent with the PATCH route's own validation.
+  const sanitizedCrop = sanitizeCrop(crop);
+  if (sanitizedCrop) {
+    details.crop = sanitizedCrop;
   }
 
   const { rows } = await query(
