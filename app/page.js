@@ -133,22 +133,22 @@ export default function MarketingHome() {
               motion as posting anywhere else, just with a price attached.
             </p>
           </div>
-          <div className="marketing-card marketing-card-palette">
-            {/* The card's own background IS a color-palette grid, rather
-                than an icon describing one -- showing the actual point
-                (your shop's colors are yours to pick) instead of
-                illustrating it at a remove. Text sits in its own
-                readable panel on top since the background is busy by
-                design. */}
-            <div className="marketing-card-palette-text">
-              <h3>Two colors, and it's yours.</h3>
-              <p>
-                Pick your shop's background and text color and it instantly
-                feels like you. The feed, checkout, and every gesture come
-                ready-made — no design decisions to make, and buyers already
-                know exactly how to shop the second they land.
-              </p>
+          <div className="marketing-card">
+            <div className="marketing-icon marketing-icon-palette" aria-hidden="true">
+              <span className="marketing-icon-palette-grid">
+                <span style={{ background: "#a878ff" }} />
+                <span style={{ background: "#e0607a" }} />
+                <span style={{ background: "#e0a83c" }} />
+                <span style={{ background: "#3ba8c9" }} />
+              </span>
             </div>
+            <h3>Two colors, and it's yours.</h3>
+            <p>
+              Pick your shop's background and text color and it instantly
+              feels like you. The feed, checkout, and every gesture come
+              ready-made — no design decisions to make, and buyers already
+              know exactly how to shop the second they land.
+            </p>
           </div>
           <div className="marketing-card">
             <div className="marketing-icon marketing-icon-money" aria-hidden="true">$</div>

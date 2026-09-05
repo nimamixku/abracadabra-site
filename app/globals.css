@@ -2746,48 +2746,24 @@ textarea {
   font-size: 1.15rem;
 }
 
-/* "Color palette is customizable" card: the card's own background is an
-   actual swatch grid (hue sweep left-to-right, dark-to-light top-to-
-   bottom, thin grid lines over it) instead of an icon describing a
-   palette -- shows the point rather than illustrating it at a remove.
-   Pure CSS, no image asset. Text moves into its own readable panel
-   since the background is intentionally busy. */
-/* Needs to be at least as specific as ".marketing-section-alt
-   .marketing-card" (0,2,0) -- that rule sets the "background" shorthand,
-   which resets background-image to none, so a single-class selector
-   here would lose the background-image property outright regardless of
-   source order. Compounding onto .marketing-card matches that
-   specificity and this rule comes later in the file, so it wins. */
-.marketing-card.marketing-card-palette {
-  position: relative;
-  overflow: hidden;
-  padding: 1.5rem;
-  background-image:
-    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.16) 0 2px, transparent 2px 34px),
-    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.16) 0 2px, transparent 2px 34px),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.4), rgba(255, 255, 255, 0.5)),
-    linear-gradient(
-      90deg,
-      #123a6b, #241b5e, #4a1560, #7a1240, #9c2a1e, #b9540f,
-      #c9820a, #b8a80f, #7fae1f, #2f9e4a, #1c8f7c, #14649e, #123a6b
-    );
-  background-size: 34px 34px, 34px 34px, 100% 100%, 100% 100%;
+/* "Two colors, and it's yours" card: a small badge matching the other
+   two cards' icon treatment (a 2x2 grid of actual colors, rather than a
+   full swatch-grid card background) -- the card itself stays the same
+   plain black as its neighbors. */
+.marketing-icon-palette {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--card-line);
 }
 
-.marketing-card-palette-text {
-  position: relative;
-  background: rgba(10, 8, 15, 0.72);
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
-  border-radius: 12px;
-  padding: 1rem 1.1rem;
+.marketing-icon-palette-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 3px;
+  width: 20px;
+  height: 20px;
 }
 
-.marketing-card-palette-text h3,
-.marketing-card-palette-text p {
-  color: #fff;
-}
-
-.marketing-card-palette-text p {
-  color: rgba(255, 255, 255, 0.82);
+.marketing-icon-palette-grid span {
+  border-radius: 3px;
 }
