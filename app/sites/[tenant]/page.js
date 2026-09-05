@@ -26,6 +26,13 @@ export default async function TenantStorefront({ params }) {
     minHeight: "100dvh",
     ...(tenant.bg_color ? { background: tenant.bg_color, "--bg": tenant.bg_color } : {}),
     ...(tenant.ink_color ? { color: tenant.ink_color, "--ink": tenant.ink_color } : {}),
+    // The one deliberate exception to "layout stays uniform, only color
+    // is customizable" (see the plan) -- an artist can opt their shop
+    // into rendering at phone width even on a desktop browser, closer
+    // to the try-it demo's own framing, instead of the platform's normal
+    // 640px-max column. A real phone's own viewport is already narrower
+    // than either number, so this never affects an actual mobile visitor.
+    ...(tenant.compact_desktop ? { maxWidth: "430px" } : {}),
   };
 
   return (

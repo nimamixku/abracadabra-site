@@ -597,12 +597,58 @@ function ProductCard({ product, tenantSlug, payoutsActive, onChanged, onRemoved 
   );
 }
 
+// The sticky side-panel "how a customer will feel" mini preview -- a
+// small, read-only card mirroring one real product: its actual photo
+// (crop applied, same lib/cropStyle.js formula the real storefront
+// uses) or video, title, and price. Deliberately not the same markup as
+// the full editable ProductCard -- this is a glance-sized mirror of
+// what's there, not a second place to edit it, so nothing here is an
+// input. Tapping it jumps the main list to that card instead.
+function MiniPreviewCard({ product, onSelect }) {
+  const previewFile = product.files?.preview_image;
+  const videoFile = product.files?.video;
+  const previewUrl = previewFile ? `/api/preview?productId=${product.id}&kind=preview_image` : null;
+  const videoUrl = videoFile ? `/api/preview?productId=${product.id}&kind=video` : null;
+  const cropStyle = cropBackgroundStyle(product.details?.crop || null);
+
+  return (
+    <button
+      type="button"
+      className="dash-phone-card"
+      onClick={() => onSelect(product.id)}
+      aria-label={product.title || "Untitled piece"}
+    >
+      <div className="dash-phone-card-media">
+        {videoUrl ? (
+          <video src={videoUrl} muted playsInline preload="metadata" />
+        ) : cropStyle && previewUrl ? (
+          <div className="dash-phone-card-cropped" style={{ ...cropStyle, backgroundImage: `url(${previewUrl})` }} />
+        ) : previewUrl ? (
+          <img src={previewUrl} alt="" />
+        ) : (
+          <div className="dash-phone-card-empty" aria-hidden="true" />
+        )}
+        {!product.active && <span className="dash-phone-card-draft">Draft</span>}
+      </div>
+      <div className="dash-phone-card-row">
+        <span className="dash-phone-card-title">{product.title || "Untitled"}</span>
+        {product.type !== "video" && (
+          <span className="dash-phone-card-price">
+            {product.price_cents > 0 ? `$${(product.price_cents / 100).toFixed(2)}` : "—"}
+          </span>
+        )}
+      </div>
+    </button>
+  );
+}
+
 export default function ProductManager({ tenant }) {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState("feed");
   const [dragOver, setDragOver] = useState(false);
   const [banner, setBanner] = useState("");
+  const [phoneVisible, setPhoneVisible] = useState(true);
   const cardRefs = useRef({});
   const payoutsActive = tenant?.stripe_connect_status === "active";
 
@@ -706,7 +752,8 @@ export default function ProductManager({ tenant }) {
   const published = products.filter((p) => p.active);
 
   return (
-    <div>
+    <div className="dash-layout">
+      <div className="dash-main-col">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem" }}>
         <h2 style={{ margin: 0 }}>Products</h2>
         {products.length > 1 && (
@@ -860,6 +907,30 @@ export default function ProductManager({ tenant }) {
           ))}
         </div>
       )}
+      </div>
+
+      <div className="dash-phone-col">
+        <span className="dash-phone-label">Customer preview</span>
+        <button type="button" className="dash-phone-toggle" onClick={() => setPhoneVisible((v) => !v)}>
+          {phoneVisible ? "Hide" : "Show"}
+        </button>
+        {phoneVisible && (
+          <div className="dash-phone-frame">
+            <div className="dash-phone-notch" aria-hidden="true" />
+            <div className="dash-phone-screen">
+              {products.length === 0 ? (
+                <div className="dash-phone-empty">
+                  Drop in a piece to see it here, the way a customer would.
+                </div>
+              ) : (
+                [...drafts, ...published].map((p) => (
+                  <MiniPreviewCard key={p.id} product={p} onSelect={scrollToCard} />
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

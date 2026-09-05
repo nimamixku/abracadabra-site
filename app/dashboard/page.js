@@ -6,6 +6,7 @@ import ProductManager from "./ProductManager";
 import SignOutButton from "./SignOutButton";
 import ConnectPayoutsButton from "./ConnectPayoutsButton";
 import ThemePicker from "./ThemePicker";
+import DesktopViewToggle from "./DesktopViewToggle";
 import ShopNameEditor from "./ShopNameEditor";
 
 export default async function DashboardPage() {
@@ -83,6 +84,7 @@ export default async function DashboardPage() {
               </h2>
               <ConnectPayoutsButton status={tenant.stripe_connect_status} />
               <ThemePicker tenant={tenant} />
+              <DesktopViewToggle tenant={tenant} />
             </div>
           </>
         ) : (

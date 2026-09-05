@@ -3172,3 +3172,180 @@ textarea {
   color: #0b0b0d;
   font-weight: 600;
 }
+
+/* Dashboard-only "how a customer will feel" mobile preview: a small
+   sticky phone mockup beside the desktop card feed, mirroring the exact
+   same pieces (drafts included, same order) the artist is currently
+   uploading/editing, at true mobile scale so a wide desktop editing
+   surface doesn't hide what these cards actually look like on a phone.
+   Independent of the ProductManager's own grid/feed view toggle -- this
+   always shows the compact feed view. Sticky (not fixed) so it stays in
+   view as the card list scrolls but still respects normal page flow,
+   and hidden entirely below the width where a phone-sized mockup
+   wouldn't have room to sit beside the cards anyway. */
+.dash-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.75rem;
+}
+
+.dash-main-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-phone-col {
+  position: sticky;
+  top: 1.25rem;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+@media (max-width: 900px) {
+  .dash-phone-col {
+    display: none;
+  }
+}
+
+.dash-phone-label {
+  color: var(--ink-dim);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.dash-phone-toggle {
+  background: none;
+  border: 1px solid var(--card-line);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  color: var(--ink-dim);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.dash-phone-frame {
+  width: 220px;
+  height: 448px;
+  background: #050505;
+  border: 1px solid var(--card-line);
+  border-radius: 31px;
+  padding: 10px 7px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+  position: relative;
+}
+
+.dash-phone-notch {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 66px;
+  height: 13px;
+  background: #050505;
+  border-radius: 0 0 9px 9px;
+  z-index: 2;
+}
+
+.dash-phone-screen {
+  height: 100%;
+  background: var(--bg);
+  border-radius: 22px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  padding: 20px 8px 10px;
+}
+
+.dash-phone-empty {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  text-align: center;
+  color: var(--ink-dim);
+  font-size: 0.75rem;
+}
+
+.dash-phone-card {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0 0 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+.dash-phone-card-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dash-phone-card-media img,
+.dash-phone-card-media video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.dash-phone-card-cropped {
+  width: 100%;
+  height: 100%;
+  background-repeat: no-repeat;
+}
+
+.dash-phone-card-empty {
+  width: 100%;
+  height: 100%;
+  background: var(--card);
+}
+
+.dash-phone-card-draft {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--ink);
+  font-size: 0.55rem;
+  padding: 2px 6px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dash-phone-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 6px 2px 0;
+}
+
+.dash-phone-card-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-phone-card-price {
+  font-size: 0.7rem;
+  color: var(--ink-dim);
+  flex-shrink: 0;
+}

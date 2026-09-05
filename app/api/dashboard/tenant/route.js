@@ -62,7 +62,7 @@ export async function PATCH(req) {
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   if (!tenant) return NextResponse.json({ error: "No shop yet." }, { status: 400 });
 
-  const { bgColor, inkColor, shopName } = await req.json();
+  const { bgColor, inkColor, shopName, compactDesktop } = await req.json();
 
   for (const [label, value] of [["bgColor", bgColor], ["inkColor", inkColor]]) {
     if (value !== undefined && value !== null && !HEX_COLOR_RE.test(value)) {
@@ -82,18 +82,26 @@ export async function PATCH(req) {
     }
   }
 
+  // compact_desktop is a plain boolean (not a nullable "unset means
+  // default" field like the colors/name above) -- there's no third
+  // state to preserve, so it's simplest to just carry the existing
+  // value through unchanged when the field isn't sent.
+  const nextCompactDesktop = compactDesktop === undefined ? tenant.compact_desktop : Boolean(compactDesktop);
+
   const { rows } = await query(
     `update tenants set
        bg_color = case when $2::text is distinct from '__unset__' then $2 else bg_color end,
        ink_color = case when $3::text is distinct from '__unset__' then $3 else ink_color end,
-       shop_name = case when $4::text is distinct from '__unset__' then $4 else shop_name end
+       shop_name = case when $4::text is distinct from '__unset__' then $4 else shop_name end,
+       compact_desktop = $5
      where id = $1
-     returning id, bg_color, ink_color, shop_name`,
+     returning id, bg_color, ink_color, shop_name, compact_desktop`,
     [
       tenant.id,
       bgColor === undefined ? "__unset__" : bgColor,
       inkColor === undefined ? "__unset__" : inkColor,
       normalizedShopName === undefined ? "__unset__" : normalizedShopName,
+      nextCompactDesktop,
     ]
   );
   return NextResponse.json({ ok: true, tenant: rows[0] });
