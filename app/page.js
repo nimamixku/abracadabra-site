@@ -119,22 +119,39 @@ export default function MarketingHome() {
       <section className="marketing-section marketing-section-alt">
         <div className="marketing-grid">
           <div className="marketing-card">
+            <div className="marketing-icon marketing-icon-phone" aria-hidden="true">
+              <svg viewBox="0 0 40 40" width="22" height="22" fill="none">
+                <rect x="12" y="4" width="16" height="32" rx="4" stroke="var(--accent)" strokeWidth="2" />
+                <line x1="16" y1="12" x2="24" y2="12" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
+                <line x1="16" y1="18" x2="24" y2="18" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
+                <line x1="16" y1="24" x2="21" y2="24" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </div>
             <h3>Feels like posting, not paperwork.</h3>
             <p>
               Drop in a file, add a caption and a price, publish — the same
               motion as posting anywhere else, just with a price attached.
             </p>
           </div>
-          <div className="marketing-card">
-            <h3>Color palette is customizable — nothing else is.</h3>
-            <p>
-              Pick your shop's background and text color and make it feel
-              like yours. Everything else — the feed, the checkout, every
-              gesture — stays the same as every other shop on the platform,
-              so buyers already know how it works the moment they land.
-            </p>
+          <div className="marketing-card marketing-card-palette">
+            {/* The card's own background IS a color-palette grid, rather
+                than an icon describing one -- showing the actual point
+                (your shop's colors are yours to pick) instead of
+                illustrating it at a remove. Text sits in its own
+                readable panel on top since the background is busy by
+                design. */}
+            <div className="marketing-card-palette-text">
+              <h3>Color palette is customizable — nothing else is.</h3>
+              <p>
+                Pick your shop's background and text color and make it feel
+                like yours. Everything else — the feed, the checkout, every
+                gesture — stays the same as every other shop on the platform,
+                so buyers already know how it works the moment they land.
+              </p>
+            </div>
           </div>
           <div className="marketing-card">
+            <div className="marketing-icon marketing-icon-money" aria-hidden="true">$</div>
             <h3>You get paid directly.</h3>
             <p>
               Every sale is charged straight to your own connected account.

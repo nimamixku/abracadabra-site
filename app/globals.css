@@ -2718,3 +2718,70 @@ textarea {
   padding: 0.5rem 0.75rem;
   margin: 0;
 }
+
+/* Small icon badges on two of the three "feels like posting" marketing
+   cards (app/page.js) -- the third (color palette) gets a different
+   treatment just below, since its background IS the illustration. */
+.marketing-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 0.9rem;
+  flex-shrink: 0;
+}
+
+.marketing-icon-phone {
+  background: rgba(160, 120, 255, 0.14);
+  border: 1px solid rgba(160, 120, 255, 0.35);
+}
+
+.marketing-icon-money {
+  background: rgba(120, 200, 150, 0.16);
+  border: 1px solid rgba(120, 200, 150, 0.4);
+  color: var(--success);
+  font-weight: 800;
+  font-size: 1.15rem;
+}
+
+/* "Color palette is customizable" card: the card's own background is an
+   actual swatch grid (hue sweep left-to-right, dark-to-light top-to-
+   bottom, thin grid lines over it) instead of an icon describing a
+   palette -- shows the point rather than illustrating it at a remove.
+   Pure CSS, no image asset. Text moves into its own readable panel
+   since the background is intentionally busy. */
+.marketing-card-palette {
+  position: relative;
+  overflow: hidden;
+  padding: 1.5rem;
+  background-image:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.16) 0 2px, transparent 2px 34px),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.16) 0 2px, transparent 2px 34px),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.4), rgba(255, 255, 255, 0.5)),
+    linear-gradient(
+      90deg,
+      #123a6b, #241b5e, #4a1560, #7a1240, #9c2a1e, #b9540f,
+      #c9820a, #b8a80f, #7fae1f, #2f9e4a, #1c8f7c, #14649e, #123a6b
+    );
+  background-size: 34px 34px, 34px 34px, 100% 100%, 100% 100%;
+}
+
+.marketing-card-palette-text {
+  position: relative;
+  background: rgba(10, 8, 15, 0.72);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+}
+
+.marketing-card-palette-text h3,
+.marketing-card-palette-text p {
+  color: #fff;
+}
+
+.marketing-card-palette-text p {
+  color: rgba(255, 255, 255, 0.82);
+}
