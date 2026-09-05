@@ -1306,12 +1306,12 @@ textarea {
 @keyframes heroDividerPulse {
   0%,
   100% {
-    filter: hue-rotate(0deg);
-    opacity: 0.5;
+    opacity: 0.16;
+    filter: blur(5px) hue-rotate(0deg);
   }
   50% {
-    filter: hue-rotate(35deg);
-    opacity: 0.85;
+    opacity: 0.4;
+    filter: blur(7px) hue-rotate(70deg);
   }
 }
 
@@ -1488,36 +1488,45 @@ textarea {
   .marketing-hero-split .marketing-hero-copy {
     order: 1;
   }
+  /* Full width (no max-width cap -- spans the same width as the
+     paragraph above it) and tall enough to be the entire visual gap
+     between the copy and the try-it phone by itself, rather than a
+     small centered cluster floating in extra blank margin. Each line
+     is blurred + low-opacity + mix-blend-mode: screen so the color
+     reads as a soft glow blended into the black background -- the
+     same quiet, barely-there quality as the try-it box's own pulse --
+     never a crisp, saturated line. */
   .hero-mobile-divider {
     order: 2;
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    justify-content: space-between;
     width: 100%;
-    max-width: 260px;
-    margin: 0.35rem auto 0.1rem;
+    height: 8rem;
+    margin: 0;
   }
   .hero-divider-line {
     display: block;
     width: 100%;
-    height: 1.5px;
-    border-radius: 1px;
+    height: 3px;
+    border-radius: 2px;
+    mix-blend-mode: screen;
     animation: heroDividerPulse 9s ease-in-out infinite;
   }
   .hero-divider-line:nth-child(2) {
-    animation-delay: 0.4s;
+    animation-delay: 0.7s;
   }
   .hero-divider-line:nth-child(3) {
-    animation-delay: 0.8s;
+    animation-delay: 1.4s;
   }
   .hero-divider-line:nth-child(4) {
-    animation-delay: 1.2s;
+    animation-delay: 2.1s;
   }
   .hero-divider-line:nth-child(5) {
-    animation-delay: 1.6s;
+    animation-delay: 2.8s;
   }
   .hero-divider-line:nth-child(6) {
-    animation-delay: 2s;
+    animation-delay: 3.5s;
   }
   .marketing-hero-split .marketing-hero-demo {
     order: 3;
@@ -1613,64 +1622,6 @@ textarea {
   .marketing-cta-section-tight {
     justify-content: center;
     text-align: center;
-  }
-}
-
-/* Mobile only -- every feature/benefit card on the page (the ambient
-   pair, the "no forced cropping"/"no quality loss" pair, and the three
-   icon cards) shares one structure: icon (if any) beside the copy,
-   left-aligned, same uniform rectangle shape -- so the whole vertical
-   stack reads as one continuous list, not several separately-styled
-   groups. Spacing between every card, including across a section
-   boundary, is tightened to the same gap for the same reason: each
-   section's own top/bottom padding is zeroed out on the "boxes" side
-   and the fixed gap lives entirely in the next section's top padding
-   (or the shared grid's own `gap`), so there's exactly one gap value
-   between any two adjacent cards, never two paddings stacking. */
-@media (max-width: 640px) {
-  .ambient-section {
-    padding-bottom: 0;
-  }
-  .ambient-cards {
-    gap: 0.75rem;
-  }
-  .marketing-grid {
-    gap: 0.75rem;
-  }
-  /* Plain "no forced cropping"/"no quality loss" section only -- not
-     the icon-row section (.marketing-section-alt) and not the CTA
-     sections, which also carry the shared .marketing-section class but
-     keep their own (untouched) spacing. */
-  .marketing-section:not(.marketing-section-alt):not(.marketing-cta-section) {
-    padding-top: 0.75rem;
-    padding-bottom: 0;
-  }
-  /* Compound selector so this reliably beats the shared
-     `.marketing-section { padding-top: 1.5rem }` rule regardless of
-     source order (same specificity trap as the palette-card background
-     bug -- see the CSS comment further up this file). */
-  .marketing-section.marketing-section-alt {
-    padding-top: 0.75rem;
-  }
-
-  .marketing-card {
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    text-align: left;
-    padding: 1rem 1.1rem;
-  }
-  .marketing-icon {
-    margin-bottom: 0;
-  }
-  .ambient-cards .marketing-icon {
-    display: flex;
-  }
-  .marketing-card-text h3 {
-    margin: 0 0 0.3rem;
-  }
-  .marketing-card-text p {
-    margin: 0;
   }
 }
 
@@ -2882,4 +2833,77 @@ textarea {
 
 .marketing-icon-palette-grid span {
   border-radius: 3px;
+}
+
+/* ============================================================
+   Mobile only -- every feature/benefit card on the page (the ambient
+   pair, the "no forced cropping"/"no quality loss" pair, and the three
+   icon cards) shares one structure: icon (if any) beside the copy,
+   left-aligned, same uniform rectangle shape -- so the whole vertical
+   stack reads as one continuous list, not several separately-styled
+   groups. Every card-to-card gap, including across a section
+   boundary, is the same 0.75rem.
+
+   This block is deliberately appended at the END of the file. Several
+   of the rules it overrides (.ambient-section's own shorthand
+   `padding`, `.marketing-icon`'s base margin, etc.) are declared with
+   the *same* specificity as a single-class selector, just further
+   down in this file than an earlier attempt at this same override
+   was -- and when specificity ties, source order decides, so a later
+   base rule silently cancelled an earlier mobile-only override (this
+   is what caused the "no cart"/"no forced cropping" gap to render way
+   bigger than intended, and the ambient-section bottom padding to
+   never actually reach zero). Appending here guarantees these are the
+   last word regardless of what else in the file touches the same
+   properties. */
+@media (max-width: 640px) {
+  /* Smidge tighter than the old 3rem gap between the first CTA button
+     and this section's own tagline, without zeroing it out entirely. */
+  .ambient-section {
+    padding-top: 1.75rem;
+    padding-bottom: 0;
+  }
+  .ambient-cards {
+    gap: 0.75rem;
+  }
+  .marketing-grid {
+    gap: 0.75rem;
+  }
+
+  /* Real margin, not padding, for the gap into each "boxes" section --
+     padding sits *inside* a section's own background box, so it can't
+     create a visible gap from an adjacent same-colored box (this is
+     why the icon row used to visually merge with the card above it:
+     both are the same --card color, touching with zero true gap
+     between them). Margin sits outside the box and always shows the
+     plain page background through it. */
+  .marketing-section:not(.marketing-section-alt):not(.marketing-cta-section) {
+    margin-top: 0.75rem;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  .marketing-section.marketing-section-alt {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+  }
+
+  .marketing-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    text-align: left;
+    padding: 1rem 1.1rem;
+  }
+  .marketing-icon {
+    margin-bottom: 0;
+  }
+  .ambient-cards .marketing-icon {
+    display: flex;
+  }
+  .marketing-card-text h3 {
+    margin: 0 0 0.3rem;
+  }
+  .marketing-card-text p {
+    margin: 0;
+  }
 }
