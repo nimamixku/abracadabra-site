@@ -1310,7 +1310,11 @@ textarea {
     filter: blur(3px);
   }
   50% {
-    opacity: 0.58;
+    /* Peak opacity pulled back -- at 0.58 the brightest point of the
+       pulse read as a flat, solid color instead of a soft glow.
+       Thinness and blur radius are otherwise unchanged, both already
+       correct. */
+    opacity: 0.36;
     filter: blur(5px);
   }
 }
@@ -1618,6 +1622,14 @@ textarea {
     -webkit-hyphens: auto;
     line-height: 1.5;
     margin-top: 0;
+    /* Base .marketing-sub carries a 2rem bottom margin (for its normal
+       use elsewhere on the page) that was never zeroed here -- it was
+       adding 32px above the divider on top of the divider's own
+       space-evenly spacing, while the divider sat flush (0px) against
+       the try-it box below with nothing to match it. That's what made
+       the gap read as lopsided and the divider look like it ran into
+       the box. */
+    margin-bottom: 0;
     margin-left: auto;
     margin-right: auto;
   }
