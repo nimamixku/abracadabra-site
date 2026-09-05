@@ -2752,7 +2752,13 @@ textarea {
    palette -- shows the point rather than illustrating it at a remove.
    Pure CSS, no image asset. Text moves into its own readable panel
    since the background is intentionally busy. */
-.marketing-card-palette {
+/* Needs to be at least as specific as ".marketing-section-alt
+   .marketing-card" (0,2,0) -- that rule sets the "background" shorthand,
+   which resets background-image to none, so a single-class selector
+   here would lose the background-image property outright regardless of
+   source order. Compounding onto .marketing-card matches that
+   specificity and this rule comes later in the file, so it wins. */
+.marketing-card.marketing-card-palette {
   position: relative;
   overflow: hidden;
   padding: 1.5rem;

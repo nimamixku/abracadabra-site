@@ -141,12 +141,12 @@ export default function MarketingHome() {
                 readable panel on top since the background is busy by
                 design. */}
             <div className="marketing-card-palette-text">
-              <h3>Color palette is customizable — nothing else is.</h3>
+              <h3>Two colors, and it's yours.</h3>
               <p>
-                Pick your shop's background and text color and make it feel
-                like yours. Everything else — the feed, the checkout, every
-                gesture — stays the same as every other shop on the platform,
-                so buyers already know how it works the moment they land.
+                Pick your shop's background and text color and it instantly
+                feels like you. The feed, checkout, and every gesture come
+                ready-made — no design decisions to make, and buyers already
+                know exactly how to shop the second they land.
               </p>
             </div>
           </div>
