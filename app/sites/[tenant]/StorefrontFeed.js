@@ -74,6 +74,18 @@ function typeLabel(type) {
   return type;
 }
 
+// What a search matches against: title, description, and the type label
+// (so "photo," "audio," "video," "physical" all work) -- plus "donate"/
+// "donation" for any video that actually has that turned on, since a
+// buyer would otherwise have no way to search specifically for those.
+function searchableText(product) {
+  const parts = [product.title, product.description, typeLabel(product.type)];
+  if (product.type === "video" && product.details?.donate_enabled) {
+    parts.push("donate", "donation");
+  }
+  return parts.filter(Boolean).join(" ").toLowerCase();
+}
+
 function isDigital(type) {
   return type === "digital_image" || type === "digital_audio";
 }
@@ -1273,7 +1285,7 @@ function useTenantStripe() {
 
 const BATCH_SIZE = 18;
 
-function Feed({ tenantSlug, products }) {
+function Feed({ tenantSlug, products, searchQuery }) {
   const poolSize = products.length;
   const maxFeedItems = poolSize === 0 ? 0 : Math.ceil(poolSize / BATCH_SIZE) * BATCH_SIZE;
 
@@ -1422,6 +1434,36 @@ function Feed({ tenantSlug, products }) {
     return <p style={{ padding: 20, color: "var(--ink-dim)" }}>Nothing for sale here yet -- check back soon.</p>;
   }
 
+  // Searching shows exactly the matches, not a shuffled stream they
+  // might happen to appear in -- so this deliberately skips the whole
+  // batching/reshuffling machinery above rather than filtering the
+  // queue that feeds it. Nothing about the shuffle behavior itself
+  // changes; a cleared search box falls straight back to it untouched.
+  const trimmedQuery = (searchQuery || "").trim().toLowerCase();
+  if (trimmedQuery) {
+    const matches = products.filter((p) => searchableText(p).includes(trimmedQuery));
+    return (
+      <>
+        <ActiveCardContext.Provider value={registerCard}>
+          <div className="feed">
+            {matches.length === 0 ? (
+              <p style={{ padding: 20, color: "var(--ink-dim)" }}>
+                No matches for &ldquo;{searchQuery}&rdquo;.
+              </p>
+            ) : (
+              matches.map((p) => <ProductCard tenantSlug={tenantSlug} product={p} key={p.id} />)
+            )}
+          </div>
+        </ActiveCardContext.Provider>
+        {floatingEligible && matches.some((p) => p.id === activeProduct.id) && (
+          <Elements stripe={tenantStripe} key={activeProduct.id}>
+            <FloatingBuy tenantSlug={tenantSlug} product={activeProduct} />
+          </Elements>
+        )}
+      </>
+    );
+  }
+
   return (
     <>
       <ActiveCardContext.Provider value={registerCard}>
@@ -1466,7 +1508,7 @@ function FloatingBuy({ tenantSlug, product }) {
   );
 }
 
-export default function StorefrontFeed({ tenantSlug, stripeAccount, products }) {
+export default function StorefrontFeed({ tenantSlug, stripeAccount, products, searchQuery }) {
   const tenantStripePromise = useMemo(() => {
     const pk = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
     if (!pk || !stripeAccount) return null;
@@ -1487,7 +1529,7 @@ export default function StorefrontFeed({ tenantSlug, stripeAccount, products }) 
     <TenantStripeContext.Provider value={tenantStripePromise}>
       <PurchaseBannerProvider>
         <LightboxProvider>
-          <Feed tenantSlug={tenantSlug} products={products} />
+          <Feed tenantSlug={tenantSlug} products={products} searchQuery={searchQuery} />
         </LightboxProvider>
       </PurchaseBannerProvider>
     </TenantStripeContext.Provider>

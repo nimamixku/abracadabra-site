@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getTenantBySlug, getStorefrontProducts } from "@/lib/tenant";
-import StorefrontFeed from "./StorefrontFeed";
+import TenantShop from "./TenantShop";
 
 // The actual buyer-facing shop, reached via <slug>.<rootdomain> through
 // middleware.js's rewrite. This is a server component purely to do the
@@ -30,20 +30,7 @@ export default async function TenantStorefront({ params }) {
 
   return (
     <main className="page" style={themeStyle}>
-      <div className="masthead">
-        <span className="brand">{tenant.shop_name}</span>
-      </div>
-      {tenant.stripe_connect_status === "active" ? (
-        <StorefrontFeed
-          tenantSlug={tenant.slug}
-          stripeAccount={tenant.stripe_connect_account_id}
-          products={products}
-        />
-      ) : (
-        <p style={{ padding: 20, color: "var(--ink-dim)" }}>
-          This shop is still getting set up -- check back soon.
-        </p>
-      )}
+      <TenantShop tenant={tenant} products={products} />
     </main>
   );
 }
