@@ -98,26 +98,6 @@ function formatPrice(cents) {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-// Same starter-title logic as the real dashboard's bulk upload
-// (ProductManager.js's titleFromFilename) -- turns "sunset-over-the-
-// bay.jpg" into "Sunset Over The Bay". A visitor's own dropped photo gets
-// a real starting title pulled from its own filename, editable right on
-// the card, same as an artist would see on their own dashboard -- this
-// is the "simulate the real experience as much as possible" version of
-// the demo: type a title and a price, right here, the same motion as
-// actually posting a piece. Still purely local/in-memory -- nothing
-// typed here is ever sent anywhere, same as the photos themselves.
-function titleFromFilename(filename) {
-  const base = String(filename || "").replace(/\.[^./\\]+$/, "");
-  const title = base
-    .replace(/[-_]+/g, " ")
-    .trim()
-    .split(/\s+/)
-    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
-    .join(" ");
-  return title || "Untitled";
-}
-
 // Whatever the visitor typed, or a sensible fallback while the price
 // field is still blank -- so the floating "tap & pay" chip and the
 // lightbox still show a real-looking number even before anyone bothers
@@ -332,9 +312,8 @@ export default function TryItDemo({ variant = "interactive" }) {
     return () => observer.disconnect();
   }, [isAmbient, hasAny, slots]);
 
-  // "Fit text" for the editable title -- a title auto-filled from a real
-  // filename (see titleFromFilename above) can easily be one long
-  // unbroken word ("Neworleansnight") that's wider than the card, and a
+  // "Fit text" for the editable title -- a long unbroken word a visitor
+  // types (or pastes) can easily be wider than the card, and a
   // single-line <input> just clips it instead of wrapping like a <p>
   // would. Rather than truncate it, shrink that one title's font size
   // just enough to fit on its own line, same idea as iOS's
@@ -372,7 +351,7 @@ export default function TryItDemo({ variant = "interactive" }) {
           return {
             ...s,
             url: URL.createObjectURL(file),
-            title: titleFromFilename(file.name),
+            title: "",
             priceInput: "",
             crop: null,
             kind: isVideo ? "video" : "photo",
@@ -394,9 +373,9 @@ export default function TryItDemo({ variant = "interactive" }) {
     setCropEditorId(null);
   }
 
-  // Editable title/price, typed right on the card -- see titleFromFilename
-  // above for why title starts pre-filled from the dropped file's own
-  // name while price starts blank for the visitor to set themselves.
+  // Editable title/price, typed right on the card -- both start blank,
+  // same as a real artist's own dashboard, for the visitor to fill in
+  // themselves.
   function updateSlotField(id, field, value) {
     setSlots((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
   }

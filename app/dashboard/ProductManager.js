@@ -15,10 +15,13 @@ const TYPE_LABELS = {
 // model -- shown as their own small cards with a one-line caption so a
 // first-time artist isn't left guessing what each type means before
 // picking one (same instinct as CreateShopForm's selling-mode cards).
+// Physical is the one type a dropped file can't decide -- there's no
+// photo/audio/video distinction for a shipped good, so it's still its
+// own explicit choice. Every other type (photo, audio, video) is
+// decided by whatever media actually lands in a blank piece, not asked
+// up front -- see detectTypeFromFile.
 const OTHER_TYPES = [
-  { value: "digital_audio", label: "Digital audio", caption: "A track with a short preview clip" },
   { value: "physical", label: "Physical item", caption: "A shipped piece — sizes & shipping cost" },
-  { value: "video", label: "Video", caption: "Free to watch, with an optional donate button" },
 ];
 
 // Uploads a file for one product (full-res / preview image / preview
@@ -83,17 +86,18 @@ function primaryKindFor(type) {
   return type === "video" ? "video" : "preview_image";
 }
 
-// Turns a "title (no extension), title-case" filename into a starter
-// product title -- e.g. "sunset-over-the-bay.tiff" -> "Sunset Over The
-// Bay". Just a starting point; the artist can change it any time.
-function titleFromFilename(filename) {
-  const base = filename.replace(/\.[^./\\]+$/, "");
-  return base
-    .replace(/[-_]+/g, " ")
-    .trim()
-    .split(/\s+/)
-    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
-    .join(" ");
+// Figures out what kind of piece a dropped file is from its own file
+// type -- audio becomes "digital_audio", video becomes "video", and
+// everything else (photos, or anything ambiguous) defaults to
+// "digital_image". Nobody has to tell the app what they're dropping in;
+// whatever media actually lands decides it, the same instinct as
+// "artists like to crop -- they don't like the app to crop for them"
+// applied to picking a type instead of a shape.
+function detectTypeFromFile(file) {
+  const mime = file?.type || "";
+  if (mime.startsWith("audio/")) return "digital_audio";
+  if (mime.startsWith("video/")) return "video";
+  return "digital_image";
 }
 
 function baseNameKey(filename) {
@@ -119,7 +123,8 @@ function groupDroppedFiles(fileList) {
     const sorted = [...files].sort((a, b) => b.size - a.size);
     return {
       key: `${key}-${Date.now()}-${Math.random()}`,
-      title: titleFromFilename(sorted[0].name),
+      title: "",
+      type: detectTypeFromFile(sorted[0]),
       full: sorted[0],
       previewImage: sorted.length > 1 ? sorted[1] : null,
     };
@@ -175,6 +180,42 @@ function ProductCard({ product, tenantSlug, payoutsActive, onChanged, onRemoved 
     setError("");
     try {
       await uploadProductFile({ productId: product.id, kind, file });
+      setStatus("done");
+      onChanged?.();
+    } catch (err) {
+      setStatus("error");
+      setError(err.message);
+    }
+  }
+
+  // A still-empty draft doesn't ask the artist what kind of piece this is
+  // up front -- whatever media they actually drop into it decides that,
+  // the same instant type-detection the main dropzone above uses. Once a
+  // draft already has its primary file, its type is settled and a new
+  // drop just replaces that file, never silently switches an existing
+  // photo/audio/video out from under it.
+  async function handlePrimaryFile(file) {
+    if (!file) return;
+    if (hasPrimary || product.type === "physical") {
+      handleFile(primaryKind, file);
+      return;
+    }
+    const detected = detectTypeFromFile(file);
+    if (detected === product.type) {
+      handleFile(primaryKind, file);
+      return;
+    }
+    setStatus(`uploading-${primaryKindFor(detected)}`);
+    setError("");
+    try {
+      const res = await fetch(`/api/dashboard/products/${product.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: detected }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Could not save.");
+      await uploadProductFile({ productId: product.id, kind: primaryKindFor(detected), file });
       setStatus("done");
       onChanged?.();
     } catch (err) {
@@ -285,7 +326,7 @@ function ProductCard({ product, tenantSlug, payoutsActive, onChanged, onRemoved 
           e.preventDefault();
           e.stopPropagation();
           setMediaDragOver(false);
-          handleFile(primaryKind, e.dataTransfer.files?.[0]);
+          handlePrimaryFile(e.dataTransfer.files?.[0]);
         }}
       >
         <span className="card-kind">{TYPE_LABELS[product.type] || product.type}</span>
@@ -293,10 +334,16 @@ function ProductCard({ product, tenantSlug, payoutsActive, onChanged, onRemoved 
         <input
           ref={primaryInputRef}
           type="file"
-          accept={product.type === "video" ? "video/*" : "image/*"}
+          accept={
+            product.type === "physical"
+              ? "image/*"
+              : hasPrimary
+              ? (product.type === "video" ? "video/*" : "image/*")
+              : "image/*,audio/*,video/*"
+          }
           style={{ display: "none" }}
           onChange={(e) => {
-            handleFile(primaryKind, e.target.files?.[0]);
+            handlePrimaryFile(e.target.files?.[0]);
             e.target.value = "";
           }}
         />
@@ -358,7 +405,7 @@ function ProductCard({ product, tenantSlug, payoutsActive, onChanged, onRemoved 
         <div className="card-row">
           <input
             className="card-title tryit-title-input"
-            placeholder="Untitled — name this piece"
+            placeholder="Title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             onBlur={() => persist()}
@@ -586,19 +633,34 @@ export default function ProductManager({ tenant }) {
       const res = await fetch("/api/dashboard/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "digital_image", title: group.title, priceCents: 0, draft: true }),
+        body: JSON.stringify({ type: group.type, title: group.title, priceCents: 0, draft: true }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not save.");
       const productId = data.product.id;
-      // The primary/largest dropped file is always the real sellable
-      // "full" file. If a smaller matched preview was dropped alongside
-      // it, that becomes the feed photo; otherwise the same file doubles
-      // as its own preview so the card shows something immediately
-      // instead of an empty placeholder (an artist can always swap in a
-      // distinct preview later).
-      await uploadProductFile({ productId, kind: "full", file: group.full });
-      await uploadProductFile({ productId, kind: "preview_image", file: group.previewImage || group.full });
+      if (group.type === "video") {
+        // Free-to-watch video is the file itself -- same "video" kind
+        // the card plays, no separate gated full-res download.
+        await uploadProductFile({ productId, kind: "video", file: group.full });
+      } else if (group.type === "digital_audio") {
+        // The largest dropped file is the real audio track; a smaller
+        // matched file sharing its name (e.g. cover art) becomes the
+        // feed's cover image if one was dropped, otherwise the artist
+        // adds a cover later.
+        await uploadProductFile({ productId, kind: "full", file: group.full });
+        if (group.previewImage) {
+          await uploadProductFile({ productId, kind: "preview_image", file: group.previewImage });
+        }
+      } else {
+        // The primary/largest dropped file is always the real sellable
+        // "full" file. If a smaller matched preview was dropped alongside
+        // it, that becomes the feed photo; otherwise the same file doubles
+        // as its own preview so the card shows something immediately
+        // instead of an empty placeholder (an artist can always swap in a
+        // distinct preview later).
+        await uploadProductFile({ productId, kind: "full", file: group.full });
+        await uploadProductFile({ productId, kind: "preview_image", file: group.previewImage || group.full });
+      }
       return productId;
     } catch (err) {
       setBanner(`Couldn't save ${group.full.name}: ${err.message}`);
@@ -681,11 +743,11 @@ export default function ProductManager({ tenant }) {
           addDroppedFiles(e.dataTransfer.files);
         }}
       >
-        Drag &amp; drop photos here, or tap to choose
+        Drag &amp; drop photos, audio, or video here — or tap to choose
         <input
           type="file"
           multiple
-          accept="image/*"
+          accept="image/*,audio/*,video/*"
           style={{ display: "block", marginTop: "0.5rem" }}
           onChange={(e) => {
             addDroppedFiles(e.target.files);
@@ -695,6 +757,10 @@ export default function ProductManager({ tenant }) {
       </label>
 
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.6rem" }}>
+        <button type="button" className="dash-type-chip" onClick={() => addBlank("digital_image")}>
+          <div className="dash-type-chip-title">+ Add a piece</div>
+          <div className="dash-type-chip-caption">Starts blank — drop in a photo, audio, or video once it's made</div>
+        </button>
         {OTHER_TYPES.map((t) => (
           <button key={t.value} type="button" className="dash-type-chip" onClick={() => addBlank(t.value)}>
             <div className="dash-type-chip-title">+ {t.label}</div>

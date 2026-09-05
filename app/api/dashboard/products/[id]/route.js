@@ -3,6 +3,11 @@ import { getSessionTenant } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { sanitizeCrop } from "@/lib/cropStyle";
 
+// Kept in sync with the POST route's own PRODUCT_TYPES -- a dropped
+// draft's type can only ever become one of these four, same as at
+// creation time.
+const PRODUCT_TYPES = new Set(["digital_image", "digital_audio", "physical", "video"]);
+
 // Finishing a draft (see POST .../products' `draft` flag) or editing an
 // already-published product -- same endpoint either way, since the only
 // real difference is whether `active` flips from false to true. Partial
@@ -23,12 +28,38 @@ export async function PATCH(req, { params }) {
   const product = productRows[0];
   if (!product) return NextResponse.json({ error: "Unknown product." }, { status: 404 });
 
-  const { title, description, priceCents, sizes, shippingCents, crop, active, donateEnabled, donateSuggestedCents } =
+  const { title, description, priceCents, sizes, shippingCents, crop, active, donateEnabled, donateSuggestedCents, type } =
     await req.json();
 
   const fields = [];
   const values = [];
   let i = 1;
+
+  // Type-switching only ever happens once, automatically, the instant an
+  // artist drops the first bit of media into a still-empty draft (see
+  // ProductManager's handlePrimaryFile / detectTypeFromFile) -- a draft
+  // that already has a file attached has its type settled, so this stays
+  // a one-time correction rather than something that could quietly
+  // reshuffle an already-published piece's stored fields under it.
+  if (type !== undefined) {
+    if (!PRODUCT_TYPES.has(type)) {
+      return NextResponse.json({ error: "Unknown product type." }, { status: 400 });
+    }
+    if (type !== product.type) {
+      const { rows: existingFiles } = await query(
+        "select 1 from product_files where product_id = $1 limit 1",
+        [productId]
+      );
+      if (existingFiles.length > 0) {
+        return NextResponse.json(
+          { error: "Can't change type after a file has been attached." },
+          { status: 400 }
+        );
+      }
+      fields.push(`type = $${i++}`);
+      values.push(type);
+    }
+  }
 
   // Publishing (active:true) is the one moment a draft's missing title/
   // price actually has to be filled in -- same requirement as a non-draft
