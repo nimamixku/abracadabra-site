@@ -129,8 +129,9 @@ export default function MarketingHome() {
             </div>
             <h3>Feels like posting, not paperwork.</h3>
             <p>
-              Drop in a file, add a caption and a price, publish — the same
-              motion as posting anywhere else, just with a price attached.
+              Choose your photo, audio, or video, add a caption and a price,
+              publish — the same motion as posting anywhere else, just with
+              a price attached.
             </p>
           </div>
           <div className="marketing-card">
@@ -145,18 +146,16 @@ export default function MarketingHome() {
             <h3>Two colors, and it's yours.</h3>
             <p>
               Pick your shop's background and text color and it instantly
-              feels like you. The feed, checkout, and every gesture come
-              ready-made — no design decisions to make, and buyers already
-              know exactly how to shop the second they land.
+              feels like you.
             </p>
           </div>
           <div className="marketing-card">
             <div className="marketing-icon marketing-icon-money" aria-hidden="true">$</div>
             <h3>You get paid directly.</h3>
             <p>
-              Every sale is charged straight to your own connected account.
-              We take a small platform fee — the rest lands with you, same
-              purchase, no waiting on us to forward it.
+              Every sale lands straight in your own connected account,
+              instantly — no waiting on us to forward it. We take a small
+              platform fee off the top; the rest is already yours.
             </p>
           </div>
         </div>
