@@ -1485,6 +1485,9 @@ textarea {
   .marketing-hero-split {
     grid-template-columns: 1fr;
     gap: 0;
+    /* Half the base 3.5rem gap between the marquee board above and the
+       "for artists" box here. */
+    padding-top: 1.75rem;
     text-align: center;
     max-width: 640px;
   }
@@ -1503,11 +1506,16 @@ textarea {
      reads as a soft glow blended into the black background -- the
      same quiet, barely-there quality as the try-it box's own pulse --
      never a crisp, saturated line. */
+  /* space-evenly (not space-between) so there's equal breathing room
+     before the first line and after the last line, same as between
+     each pair of lines -- never touching the paragraph above or the
+     try-it box below, and the whole cluster reads as centered in the
+     gap rather than pinned to its edges. */
   .hero-mobile-divider {
     order: 2;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: space-evenly;
     width: 100%;
     height: 2.25rem;
     margin: 0;
@@ -1517,12 +1525,12 @@ textarea {
      The delay is spaced wider than before, relative to the 7s
      duration, so the brighten-then-dim moves visibly from line to
      line down the stack (and back up again) rather than all six
-     glowing in place at once. Thinner than the first pass now that
-     the whole strip is half the height. */
+     glowing in place at once. Extremely thin -- just a suggestion of
+     a line, not a stroke. */
   .hero-divider-line {
     display: block;
     width: 100%;
-    height: 1.5px;
+    height: 1px;
     border-radius: 1px;
     mix-blend-mode: screen;
     animation: heroDividerPulse 7s ease-in-out infinite;
@@ -2915,10 +2923,27 @@ textarea {
     padding-top: 0;
     padding-bottom: 0;
   }
+  /* The icon row's shared box previously lived on the *section*
+     itself, which -- unlike the other two groups, where the box lives
+     on an inner grid/cards element -- spans the full viewport width
+     regardless of its own padding (a section's background always
+     fills its own box edge to edge; the padding only pushes its
+     *content* inward). That's what made this box visibly wider than
+     the other two: confirmed by inspecting the live page directly
+     (ambient-cards/plain-grid rendered at 327px inset by 24px each
+     side; the alt section's own box rendered 375px, full width, no
+     inset at all). Moved down to `.marketing-grid` here too so all
+     three boxes are positioned identically. */
   .marketing-section.marketing-section-alt {
     margin-top: 0;
-    padding-top: 0.375rem;
+    background: none;
+    border-radius: 0;
+    padding-top: 0;
+  }
+  .marketing-section-alt .marketing-grid {
+    background: var(--card);
     border-radius: 0 0 24px 24px;
+    padding: 0.375rem 1.1rem 1rem;
   }
 
   .marketing-card {
