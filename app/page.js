@@ -71,8 +71,6 @@ export default function MarketingHome() {
             sketch of it. Placed in the grid via its own explicit `order` so
             it lands between the two, not tied to either one's own layout. */}
         <div className="hero-mobile-divider" aria-hidden="true">
-          <span className="hero-divider-line" style={{ background: "#a878ff" }} />
-          <span className="hero-divider-line" style={{ background: "#e05a3c" }} />
           <span className="hero-divider-line" style={{ background: "#e0c83c" }} />
           <span className="hero-divider-line" style={{ background: "#7ac97a" }} />
           <span className="hero-divider-line" style={{ background: "#3bb8c9" }} />
