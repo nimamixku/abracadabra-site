@@ -127,11 +127,13 @@ export default function MarketingHome() {
                 <line x1="16" y1="24" x2="21" y2="24" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
               </svg>
             </div>
-            <h3>Feels like posting, not work.</h3>
-            <p>
-              Choose your photo, audio, or video, add a caption and a price.
-              Publish — the same motion as posting anywhere else.
-            </p>
+            <div className="marketing-card-text">
+              <h3>Feels like posting, not work.</h3>
+              <p>
+                Choose your photo, audio, or video, add a caption and a price.
+                Publish — the same motion as posting anywhere else.
+              </p>
+            </div>
           </div>
           <div className="marketing-card">
             <div className="marketing-icon marketing-icon-palette" aria-hidden="true">
@@ -142,20 +144,24 @@ export default function MarketingHome() {
                 <span style={{ background: "#3ba8c9" }} />
               </span>
             </div>
-            <h3>Choose your palette.</h3>
-            <p>
-              Pick your shop's background and text color and it instantly
-              feels like you.
-            </p>
+            <div className="marketing-card-text">
+              <h3>Choose your palette.</h3>
+              <p>
+                Pick your shop's background and text color and it instantly
+                feels like you.
+              </p>
+            </div>
           </div>
           <div className="marketing-card">
             <div className="marketing-icon marketing-icon-money" aria-hidden="true">$</div>
-            <h3>You get paid directly.</h3>
-            <p>
-              Every sale lands straight in your own connected account,
-              instantly — a small platform fee, and the rest is already
-              yours.
-            </p>
+            <div className="marketing-card-text">
+              <h3>You get paid directly.</h3>
+              <p>
+                Every sale lands straight in your own connected account,
+                instantly — a small platform fee, and the rest is already
+                yours.
+              </p>
+            </div>
           </div>
         </div>
       </section>
