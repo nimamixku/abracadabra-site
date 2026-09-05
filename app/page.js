@@ -35,20 +35,27 @@ export default function MarketingHome() {
           <TryItDemo />
         </div>
         <div className="marketing-hero-copy">
-          <p className="marketing-kicker">for artists</p>
-          <h1>
-            <span className="hero-line">feels like posting.</span>
-            <span className="hero-line">instant pay &amp; download.</span>
-            <span className="hero-line">infinite scroll and shuffle.</span>
-          </h1>
-          {/* Mobile only (see .hero-mobile-ambient, hidden everywhere else) --
-              the small passive/ambient phone, same component already used
-              below in .ambient-section, just a second instance here at a
-              smaller size so it can sit next to the headline on mobile.
-              Never the interactive try-it phone -- that one stays full size,
-              in its own full section below (see .marketing-hero-demo). */}
-          <div className="hero-mobile-ambient" aria-hidden="true">
-            <AmbientLoop />
+          {/* Mobile only: this inner box (kicker + h1 + ambient phone) is
+              the boxed/card treatment -- sized to just this content, not
+              stretched down to the paragraph below. The paragraph itself
+              sits outside the box, directly on the page background (see
+              .marketing-hero-topbox in the mobile media query). */}
+          <div className="marketing-hero-topbox">
+            <p className="marketing-kicker">for artists</p>
+            <h1>
+              <span className="hero-line">feels like posting.</span>
+              <span className="hero-line">instant pay &amp; download.</span>
+              <span className="hero-line">infinite scroll and shuffle.</span>
+            </h1>
+            {/* Mobile only (see .hero-mobile-ambient, hidden everywhere else) --
+                the small passive/ambient phone, same component already used
+                below in .ambient-section, just a second instance here at a
+                smaller size so it can sit next to the headline on mobile.
+                Never the interactive try-it phone -- that one stays full size,
+                in its own full section below (see .marketing-hero-demo). */}
+            <div className="hero-mobile-ambient" aria-hidden="true">
+              <AmbientLoop />
+            </div>
           </div>
           <p className="marketing-sub">
             Just easier — no cart, no checkout, and your entire catalog
@@ -57,6 +64,19 @@ export default function MarketingHome() {
             files. Pick your own background and text color, and get paid
             straight to your account on every sale.
           </p>
+        </div>
+        {/* Mobile only -- a thin, quiet divider between the copy above and
+            the interactive try-it phone below: several close, hairline-thin
+            colored lines that gently pulse, echoing the founder's own rough
+            sketch of it. Placed in the grid via its own explicit `order` so
+            it lands between the two, not tied to either one's own layout. */}
+        <div className="hero-mobile-divider" aria-hidden="true">
+          <span className="hero-divider-line" style={{ background: "#a878ff" }} />
+          <span className="hero-divider-line" style={{ background: "#e05a3c" }} />
+          <span className="hero-divider-line" style={{ background: "#e0c83c" }} />
+          <span className="hero-divider-line" style={{ background: "#7ac97a" }} />
+          <span className="hero-divider-line" style={{ background: "#3bb8c9" }} />
+          <span className="hero-divider-line" style={{ background: "#e0508a" }} />
         </div>
       </section>
 
@@ -78,18 +98,50 @@ export default function MarketingHome() {
           <AmbientLoop />
           <div className="ambient-cards">
             <div className="marketing-card marketing-card-compact">
-              <h3>No manual merchandising, ever.</h3>
-              <p>
-                The feed shuffles on its own — no homepage to arrange, no
-                decision about what goes first.
-              </p>
+              <div className="marketing-card-text">
+                <h3>No manual merchandising, ever.</h3>
+                <p>
+                  The feed shuffles on its own — no homepage to arrange, no
+                  decision about what goes first.
+                </p>
+              </div>
             </div>
             <div className="marketing-card marketing-card-compact">
-              <h3>No cart, ever.</h3>
-              <p>
-                Apple Pay or Google Pay, right from the feed — no cart, no
-                account required to buy.
-              </p>
+              <div className="marketing-icon marketing-icon-cart" aria-hidden="true">
+                <svg viewBox="0 0 40 40" width="22" height="22" fill="none">
+                  <path
+                    d="M10 14 H30 L27 26 H13 Z"
+                    stroke="var(--accent)"
+                    strokeWidth="2"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M10 14 L7 8 H4"
+                    stroke="var(--accent)"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <circle cx="15.5" cy="30.5" r="1.8" fill="var(--accent)" />
+                  <circle cx="24.5" cy="30.5" r="1.8" fill="var(--accent)" />
+                  <line
+                    x1="6"
+                    y1="6"
+                    x2="34"
+                    y2="34"
+                    stroke="var(--accent)"
+                    strokeWidth="2.25"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </div>
+              <div className="marketing-card-text">
+                <h3>No cart, ever.</h3>
+                <p>
+                  Apple Pay or Google Pay, right from the feed — no cart, no
+                  account required to buy.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -98,20 +150,24 @@ export default function MarketingHome() {
       <section className="marketing-section">
         <div className="marketing-grid">
           <div className="marketing-card">
-            <h3>No forced cropping, ever.</h3>
-            <p>
-              Every photo shows at its own real shape — no square grid
-              squeezing it to fit. A piece with more than one photo keeps
-              each one's own shape too, never locked to match the others.
-            </p>
+            <div className="marketing-card-text">
+              <h3>No forced cropping, ever.</h3>
+              <p>
+                Every photo shows at its own real shape — no square grid
+                squeezing it to fit. A piece with more than one photo keeps
+                each one's own shape too, never locked to match the others.
+              </p>
+            </div>
           </div>
           <div className="marketing-card">
-            <h3>No platform-driven quality loss, ever.</h3>
-            <p>
-              No compression, no forced re-encoding. What people see — and
-              what they download after buying — is always your real,
-              original file.
-            </p>
+            <div className="marketing-card-text">
+              <h3>No platform-driven quality loss, ever.</h3>
+              <p>
+                No compression, no forced re-encoding. What people see — and
+                what they download after buying — is always your real,
+                original file.
+              </p>
+            </div>
           </div>
         </div>
       </section>

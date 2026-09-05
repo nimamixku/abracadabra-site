@@ -1288,6 +1288,33 @@ textarea {
   display: none;
 }
 
+/* Mobile-only quiet divider between the hero copy and the interactive
+   try-it phone -- several thin, closely-stacked colored hairlines that
+   gently pulse, matching the founder's own rough sketch of it (a row of
+   thin parallel colored lines, tightly spaced). Hidden here (desktop
+   default); the mobile media query below both shows it and gives it its
+   `order` so it lands between the two grid items regardless of DOM
+   position. */
+.hero-mobile-divider {
+  display: none;
+}
+
+.hero-divider-line {
+  display: none;
+}
+
+@keyframes heroDividerPulse {
+  0%,
+  100% {
+    filter: hue-rotate(0deg);
+    opacity: 0.5;
+  }
+  50% {
+    filter: hue-rotate(35deg);
+    opacity: 0.85;
+  }
+}
+
 /* Full-width header for the whole try-it section, spanning both grid
    columns -- explicitly frames what the demo below is (a trial), so the
    tagline next to it can't be misread as "nothing here needs paying
@@ -1461,8 +1488,39 @@ textarea {
   .marketing-hero-split .marketing-hero-copy {
     order: 1;
   }
-  .marketing-hero-split .marketing-hero-demo {
+  .hero-mobile-divider {
     order: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    width: 100%;
+    max-width: 260px;
+    margin: 0.35rem auto 0.1rem;
+  }
+  .hero-divider-line {
+    display: block;
+    width: 100%;
+    height: 1.5px;
+    border-radius: 1px;
+    animation: heroDividerPulse 9s ease-in-out infinite;
+  }
+  .hero-divider-line:nth-child(2) {
+    animation-delay: 0.4s;
+  }
+  .hero-divider-line:nth-child(3) {
+    animation-delay: 0.8s;
+  }
+  .hero-divider-line:nth-child(4) {
+    animation-delay: 1.2s;
+  }
+  .hero-divider-line:nth-child(5) {
+    animation-delay: 1.6s;
+  }
+  .hero-divider-line:nth-child(6) {
+    animation-delay: 2s;
+  }
+  .marketing-hero-split .marketing-hero-demo {
+    order: 3;
   }
   /* Mobile only -- same "alive" pulse, still shifted close to true
      black so the box doesn't read as bright against the rest of the
@@ -1473,17 +1531,24 @@ textarea {
      purpose: just enough to read as "this box belongs to this site"
      next to the flat black everywhere else, not a colored panel. */
   :root {
-    --tryit-demo-glow-a: #0a0810;
-    --tryit-demo-glow-b: #150f1e;
+    --tryit-demo-glow-a: #130b1e;
+    --tryit-demo-glow-b: #221434;
   }
   /* Mobile only -- headline sits beside a small ambient phone instead of
-     centered alone. Kicker + h1 take the left column, the ambient phone
-     takes the right; the paragraph below spans both, full width. Only
-     touches .marketing-hero-copy's own children -- .marketing-hero-demo
-     (the real, full-size interactive try-it phone) is untouched and
-     still renders as its own complete section right after, per order:2
-     above. */
+     centered alone, boxed as its own card (.marketing-hero-topbox) sized
+     just to that content. The paragraph below sits outside the box, on
+     the plain page background, spaced by this flex column's own gap
+     rather than living inside the card. Only touches .marketing-hero-copy's
+     own children -- .marketing-hero-demo (the real, full-size interactive
+     try-it phone) is untouched and still renders as its own complete
+     section right after, per order:2 above. */
   .marketing-hero-split .marketing-hero-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    text-align: left;
+  }
+  .marketing-hero-split .marketing-hero-topbox {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     column-gap: 1rem;
@@ -1492,7 +1557,7 @@ textarea {
     background: var(--card);
     border: 1px solid var(--card-line);
     border-radius: 24px;
-    padding: 1.75rem 1.5rem;
+    padding: 1.5rem 1.5rem;
   }
   .marketing-hero-split .marketing-kicker,
   .marketing-hero-split .marketing-hero-copy h1 {
@@ -1516,12 +1581,12 @@ textarea {
     transform: scale(0.393);
   }
   .marketing-hero-split .marketing-sub {
-    grid-column: 1 / -1;
     text-align: justify;
     text-align-last: center;
     hyphens: auto;
     -webkit-hyphens: auto;
-    margin-top: 1rem;
+    line-height: 1.5;
+    margin-top: 0;
     margin-left: auto;
     margin-right: auto;
   }
@@ -1551,47 +1616,61 @@ textarea {
   }
 }
 
-/* Mobile only -- match the "No forced cropping" / "No platform-driven
-   quality loss" cards (plain .marketing-card in .marketing-grid) to the
-   centered look the compact ambient cards already have above them, and
-   tighten the gap between the two card groups so all four feel like one
-   evenly-spaced set instead of two separately-padded sections. A first
-   pass -- revisit the exact spacing once the rest of the mobile page is
-   settled. */
+/* Mobile only -- every feature/benefit card on the page (the ambient
+   pair, the "no forced cropping"/"no quality loss" pair, and the three
+   icon cards) shares one structure: icon (if any) beside the copy,
+   left-aligned, same uniform rectangle shape -- so the whole vertical
+   stack reads as one continuous list, not several separately-styled
+   groups. Spacing between every card, including across a section
+   boundary, is tightened to the same gap for the same reason: each
+   section's own top/bottom padding is zeroed out on the "boxes" side
+   and the fixed gap lives entirely in the next section's top padding
+   (or the shared grid's own `gap`), so there's exactly one gap value
+   between any two adjacent cards, never two paddings stacking. */
 @media (max-width: 640px) {
-  .marketing-card {
-    text-align: center;
-  }
   .ambient-section {
-    padding-bottom: 1.5rem;
+    padding-bottom: 0;
   }
-  .marketing-section {
-    padding-top: 1.5rem;
-  }
-
-  /* Icon-left compact layout for the row of three feature cards
-     (app/page.js's .marketing-section-alt) only -- icon-on-top-centered
-     stacked three deep took too much vertical space on a phone. Icon
-     sits beside the copy, aligned with the heading's first line;
-     .marketing-card-text (wrapping the h3+p) is left-aligned so it
-     reads as a clean rectangle instead of ragged centered lines.
-     Doesn't touch the "no forced cropping"/"no quality loss" pair
-     above it, and this whole block is a no-op above 640px. */
-  .marketing-section-alt .marketing-grid {
+  .ambient-cards {
     gap: 0.75rem;
   }
-  .marketing-section-alt .marketing-card {
+  .marketing-grid {
+    gap: 0.75rem;
+  }
+  /* Plain "no forced cropping"/"no quality loss" section only -- not
+     the icon-row section (.marketing-section-alt) and not the CTA
+     sections, which also carry the shared .marketing-section class but
+     keep their own (untouched) spacing. */
+  .marketing-section:not(.marketing-section-alt):not(.marketing-cta-section) {
+    padding-top: 0.75rem;
+    padding-bottom: 0;
+  }
+  /* Compound selector so this reliably beats the shared
+     `.marketing-section { padding-top: 1.5rem }` rule regardless of
+     source order (same specificity trap as the palette-card background
+     bug -- see the CSS comment further up this file). */
+  .marketing-section.marketing-section-alt {
+    padding-top: 0.75rem;
+  }
+
+  .marketing-card {
     display: flex;
     align-items: flex-start;
     gap: 1rem;
     text-align: left;
     padding: 1rem 1.1rem;
   }
-  .marketing-section-alt .marketing-icon {
+  .marketing-icon {
     margin-bottom: 0;
   }
-  .marketing-section-alt .marketing-card-text h3 {
-    margin-bottom: 0.3rem;
+  .ambient-cards .marketing-icon {
+    display: flex;
+  }
+  .marketing-card-text h3 {
+    margin: 0 0 0.3rem;
+  }
+  .marketing-card-text p {
+    margin: 0;
   }
 }
 
@@ -2769,6 +2848,18 @@ textarea {
   color: var(--success);
   font-weight: 800;
   font-size: 1.15rem;
+}
+
+/* Mobile-only icon (see the @media block below) for the "No cart, ever."
+   ambient card -- desktop keeps that card exactly as it was before, with
+   no icon slot at all. */
+.ambient-cards .marketing-icon {
+  display: none;
+}
+
+.marketing-icon-cart {
+  background: rgba(160, 120, 255, 0.14);
+  border: 1px solid rgba(160, 120, 255, 0.35);
 }
 
 /* "Two colors, and it's yours" card: a small badge matching the other
