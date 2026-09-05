@@ -1526,13 +1526,14 @@ textarea {
     flex-direction: column;
     justify-content: space-evenly;
     width: 100%;
-    /* The six lines and their own spread (height) are untouched --
-       only the equal margin on each side was nudged up a smidge (from
-       0.375rem), giving a touch more breathing room against the copy
-       above and the try-it box below. Both .marketing-sub's own
-       margin-bottom and .marketing-hero-demo's margin-top are still
-       zero, so nothing else can throw this off-center. */
-    height: 4.25rem;
+    /* space-evenly divides this height into (line count + 1) equal
+       gaps -- with two lines dropped (6 -> 4), keeping the old 4.25rem
+       height would have stretched the remaining gaps wider instead of
+       leaving them as they were. Scaled down to 3rem so each gap stays
+       the same size it was with all six lines (~8.8px), the four
+       lines just take up less total room instead of spreading out to
+       fill the old space. Margin unchanged. */
+    height: 3rem;
     margin: 0.75rem 0;
   }
   /* Color never shifts -- each line keeps its own true color (set
