@@ -1306,16 +1306,21 @@ textarea {
 @keyframes heroDividerPulse {
   0%,
   100% {
-    opacity: 0.14;
-    filter: blur(3px);
+    /* Blur trimmed well down from 3px/2px -- with 6 lines packed into
+       a fixed-height cluster, each line only has a couple px of gap on
+       either side, so any more spread bled straight into the next
+       line's glow and read as one smudged band instead of separate
+       lines. Kept tight here so each stays its own distinct mark. */
+    opacity: 0.2;
+    filter: blur(0.75px);
   }
   50% {
-    /* Peak opacity pulled back -- at 0.58 the brightest point of the
-       pulse read as a flat, solid color instead of a soft glow.
-       Thinness and blur radius are otherwise unchanged, both already
-       correct. */
-    opacity: 0.36;
-    filter: blur(5px);
+    /* Same reasoning at peak -- opacity nudged up as asked, but blur
+       kept tight (not the 5px/3.5px tried before) so brightening still
+       reads as six distinct glowing lines pulsing in turn, never one
+       merged glow. */
+    opacity: 0.44;
+    filter: blur(1.25px);
   }
 }
 
