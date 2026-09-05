@@ -1521,8 +1521,13 @@ textarea {
     flex-direction: column;
     justify-content: space-evenly;
     width: 100%;
-    height: 2.25rem;
-    margin: 0;
+    height: 1.5rem;
+    /* Generous, symmetric black margin on both sides -- this is the
+       single source of truth for the gap above (against the copy) and
+       below (against the try-it box). Both .marketing-sub's own
+       margin-bottom and .marketing-hero-demo's margin-top are zero, so
+       nothing else can throw this off-center again. */
+    margin: 1.75rem 0;
   }
   /* Color never shifts -- each line keeps its own true color (set
      inline in app/page.js) and only breathes in brightness/blur.
@@ -1538,6 +1543,15 @@ textarea {
     border-radius: 1px;
     mix-blend-mode: screen;
     animation: heroDividerPulse 7s ease-in-out infinite;
+    /* Default animation-fill-mode is "none", which means during each
+       line's animation-delay it renders its plain, unanimated style --
+       full opacity, no blur -- instead of the pulse's own dim starting
+       point. With delays up to 4.5s that showed up as a brief but very
+       visible row of solid, full-brightness color swatches on load
+       before each line's turn began. "backwards" makes every line hold
+       the pulse's 0% (dim, blurred) look during its delay instead, so
+       nothing ever renders solid. */
+    animation-fill-mode: backwards;
   }
   .hero-divider-line:nth-child(2) {
     animation-delay: 0.9s;
