@@ -127,11 +127,10 @@ export default function MarketingHome() {
                 <line x1="16" y1="24" x2="21" y2="24" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
               </svg>
             </div>
-            <h3>Feels like posting, not paperwork.</h3>
+            <h3>Feels like posting, not work.</h3>
             <p>
-              Choose your photo, audio, or video, add a caption and a price,
-              publish — the same motion as posting anywhere else, just with
-              a price attached.
+              Choose your photo, audio, or video, add a caption and a price.
+              Publish — the same motion as posting anywhere else.
             </p>
           </div>
           <div className="marketing-card">
@@ -143,7 +142,7 @@ export default function MarketingHome() {
                 <span style={{ background: "#3ba8c9" }} />
               </span>
             </div>
-            <h3>Two colors, and it's yours.</h3>
+            <h3>Choose your palette.</h3>
             <p>
               Pick your shop's background and text color and it instantly
               feels like you.
@@ -154,8 +153,8 @@ export default function MarketingHome() {
             <h3>You get paid directly.</h3>
             <p>
               Every sale lands straight in your own connected account,
-              instantly — no waiting on us to forward it. We take a small
-              platform fee off the top; the rest is already yours.
+              instantly — a small platform fee, and the rest is already
+              yours.
             </p>
           </div>
         </div>
