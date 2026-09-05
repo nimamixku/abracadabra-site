@@ -17,6 +17,21 @@ const PHRASES = [
   "NO CROPPING WITHOUT YOUR CONSENT",
 ];
 
+// Same rainbow used for the hero divider's glow lines, so the two
+// rainbow touches on the page read as one deliberate palette rather
+// than two unrelated color choices. Each letter cycles through it --
+// soft/translucent fill plus a matching glow, never a flat opaque
+// letter, so it stays in the same "barely-there light" language as
+// the rest of the page instead of reading as a loud rainbow banner.
+const RAINBOW_RGB = [
+  "168, 120, 255", // purple
+  "224, 90, 60", // red-orange
+  "224, 200, 60", // yellow
+  "122, 201, 122", // green
+  "59, 184, 201", // cyan
+  "224, 80, 138", // pink
+];
+
 export default function MarketingMarquee() {
   const [display, setDisplay] = useState(PHRASES[0]);
   const indexRef = useRef(0);
@@ -55,7 +70,23 @@ export default function MarketingMarquee() {
 
   return (
     <div className="marquee-board marketing-marquee-board">
-      <span className="marquee-text">{display}</span>
+      <span className="marquee-text">
+        {display.split("").map((ch, i) =>
+          ch === " " ? (
+            <span key={i}>&nbsp;</span>
+          ) : (
+            <span
+              key={i}
+              style={{
+                color: `rgba(${RAINBOW_RGB[i % RAINBOW_RGB.length]}, 0.85)`,
+                textShadow: `0 0 10px rgba(${RAINBOW_RGB[i % RAINBOW_RGB.length]}, 0.55)`,
+              }}
+            >
+              {ch}
+            </span>
+          )
+        )}
+      </span>
     </div>
   );
 }

@@ -1306,12 +1306,12 @@ textarea {
 @keyframes heroDividerPulse {
   0%,
   100% {
-    opacity: 0.16;
-    filter: blur(5px) hue-rotate(0deg);
+    opacity: 0.14;
+    filter: blur(3px);
   }
   50% {
-    opacity: 0.4;
-    filter: blur(7px) hue-rotate(70deg);
+    opacity: 0.58;
+    filter: blur(5px);
   }
 }
 
@@ -1476,8 +1476,15 @@ textarea {
 }
 
 @media (max-width: 980px) {
+  /* Mobile only -- the grid's own base `gap: 2.5rem` (set above, for
+     the two-column desktop layout) was adding a full 2.5rem of blank
+     page background above AND below the divider on top of its own
+     height -- exactly the "black open space" the divider was meant to
+     replace. Zeroed here so the divider's own height is the entire
+     gap between the copy and the try-it phone, nothing added on top. */
   .marketing-hero-split {
     grid-template-columns: 1fr;
+    gap: 0;
     text-align: center;
     max-width: 640px;
   }
@@ -1502,31 +1509,38 @@ textarea {
     flex-direction: column;
     justify-content: space-between;
     width: 100%;
-    height: 8rem;
+    height: 2.25rem;
     margin: 0;
   }
+  /* Color never shifts -- each line keeps its own true color (set
+     inline in app/page.js) and only breathes in brightness/blur.
+     The delay is spaced wider than before, relative to the 7s
+     duration, so the brighten-then-dim moves visibly from line to
+     line down the stack (and back up again) rather than all six
+     glowing in place at once. Thinner than the first pass now that
+     the whole strip is half the height. */
   .hero-divider-line {
     display: block;
     width: 100%;
-    height: 3px;
-    border-radius: 2px;
+    height: 1.5px;
+    border-radius: 1px;
     mix-blend-mode: screen;
-    animation: heroDividerPulse 9s ease-in-out infinite;
+    animation: heroDividerPulse 7s ease-in-out infinite;
   }
   .hero-divider-line:nth-child(2) {
-    animation-delay: 0.7s;
+    animation-delay: 0.9s;
   }
   .hero-divider-line:nth-child(3) {
-    animation-delay: 1.4s;
+    animation-delay: 1.8s;
   }
   .hero-divider-line:nth-child(4) {
-    animation-delay: 2.1s;
+    animation-delay: 2.7s;
   }
   .hero-divider-line:nth-child(5) {
-    animation-delay: 2.8s;
+    animation-delay: 3.6s;
   }
   .hero-divider-line:nth-child(6) {
-    animation-delay: 3.5s;
+    animation-delay: 4.5s;
   }
   .marketing-hero-split .marketing-hero-demo {
     order: 3;
@@ -2857,10 +2871,10 @@ textarea {
    last word regardless of what else in the file touches the same
    properties. */
 @media (max-width: 640px) {
-  /* Smidge tighter than the old 3rem gap between the first CTA button
-     and this section's own tagline, without zeroing it out entirely. */
+  /* Tighter still than the last pass -- gap between the "Create your
+     shop" button above and this section's own tagline. */
   .ambient-section {
-    padding-top: 1.75rem;
+    padding-top: 1.1rem;
     padding-bottom: 0;
   }
   .ambient-cards {
@@ -2870,21 +2884,41 @@ textarea {
     gap: 0.75rem;
   }
 
-  /* Real margin, not padding, for the gap into each "boxes" section --
-     padding sits *inside* a section's own background box, so it can't
-     create a visible gap from an adjacent same-colored box (this is
-     why the icon row used to visually merge with the card above it:
-     both are the same --card color, touching with zero true gap
-     between them). Margin sits outside the box and always shows the
-     plain page background through it. */
+  /* All seven feature cards now read as ONE continuous shared black
+     panel (matching the icon row's original look) instead of three
+     separately-boxed groups with visible seams -- each group keeps
+     its own background/radius/padding, but they sit flush against
+     each other (zero margin between them) with only the very top and
+     bottom corners rounded, so the "seams" are invisible and the
+     whole stack reads as a single box. Each group's own top/bottom
+     padding is half of the shared 0.75rem card gap, so the gap stays
+     the same 0.75rem straight through, including across a former
+     group boundary. */
+  .ambient-cards {
+    background: var(--card);
+    border-radius: 24px 24px 0 0;
+    padding: 1rem 1.1rem 0.375rem;
+  }
+  .ambient-cards .marketing-card {
+    background: var(--bg);
+  }
+  .marketing-section:not(.marketing-section-alt):not(.marketing-cta-section) .marketing-grid {
+    background: var(--card);
+    border-radius: 0;
+    padding: 0.375rem 1.1rem;
+  }
+  .marketing-section:not(.marketing-section-alt):not(.marketing-cta-section) .marketing-card {
+    background: var(--bg);
+  }
   .marketing-section:not(.marketing-section-alt):not(.marketing-cta-section) {
-    margin-top: 0.75rem;
+    margin-top: 0;
     padding-top: 0;
     padding-bottom: 0;
   }
   .marketing-section.marketing-section-alt {
-    margin-top: 0.75rem;
-    padding-top: 0.75rem;
+    margin-top: 0;
+    padding-top: 0.375rem;
+    border-radius: 0 0 24px 24px;
   }
 
   .marketing-card {
