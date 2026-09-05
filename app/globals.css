@@ -2402,8 +2402,11 @@ textarea {
   aspect-ratio: 4 / 5;
 }
 
-.dash-card-media img,
-.dash-card-media video {
+/* Images only -- video is deliberately left out so it falls through to
+   .tenant-card-media video's natural-aspect sizing (no forced crop,
+   same rule the real storefront follows), rather than being force-cut
+   to this fixed 4/5 box the way a static image can opt into. */
+.dash-card-media img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -2544,4 +2547,174 @@ textarea {
   border: 1px solid var(--accent);
   background: var(--accent);
   color: #1a0f24;
+}
+
+/* Dashboard product grid + single editor card (ProductManager.js): a
+   small thumbnail overview up top -- browsing many pieces works better
+   as a grid than scrolling a full single-column feed -- with exactly
+   one full-size editor card below it, styled as a real .card/.feed
+   piece (same classes StorefrontFeed.js uses) so editing happens
+   directly on "what it'll actually look like" rather than a separate
+   admin form. Tap a thumbnail to swap which piece the editor below is
+   showing. */
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+  margin-top: 0.75rem;
+}
+
+.dash-grid-tile {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  background: linear-gradient(145deg, #1a1a1d, #0b0b0d);
+  cursor: pointer;
+  padding: 0;
+}
+
+.dash-grid-tile img,
+.dash-grid-tile video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.dash-grid-tile-selected {
+  border-color: var(--accent);
+}
+
+.dash-grid-tile-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ink-dim);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+.dash-grid-tile-dot-live {
+  background: var(--success);
+}
+
+.dash-grid-add-tile {
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+  border: 1px dashed var(--card-line);
+  background: transparent;
+  color: var(--ink-dim);
+  font-size: 1.6rem;
+  font-weight: 300;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dash-grid-add-tile-active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(160, 120, 255, 0.08);
+}
+
+/* Compact "+ type" row for the three product types that don't fit the
+   grid's simple photo-drop model (audio/physical/video) -- a label plus
+   a one-line caption so a first-time artist doesn't have to guess what
+   each type means before picking one, same instinct as CreateShopForm's
+   selling-mode cards. */
+.dash-type-chip {
+  flex: 1 1 140px;
+  text-align: left;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--card-line);
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.dash-type-chip-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.dash-type-chip-caption {
+  color: var(--ink-dim);
+  font-size: 0.75rem;
+  margin-top: 0.15rem;
+}
+
+/* Shop name, editable right on the dashboard's own masthead -- same
+   gradient brand treatment as the real storefront's <span class="brand">
+   (StorefrontFeed/TenantShop), just as a transparent input instead of
+   static text, so typing over it feels like editing the real shop
+   rather than filling out a settings field. */
+.dash-brand-input {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  background: linear-gradient(90deg, var(--ink), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  border: none;
+  outline: none;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.dash-brand-input::placeholder {
+  -webkit-text-fill-color: var(--ink-dim);
+  color: var(--ink-dim);
+}
+
+.dash-brand-input:focus {
+  outline: 1px dashed var(--accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+/* Small and understated on purpose -- a description is optional and
+   shouldn't compete with the title/price for visual weight the way it
+   would as a full .dash-input box. */
+.dash-desc-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  padding: 0;
+  margin: 2px 0 0;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+
+.dash-desc-input:focus {
+  outline: 1px dashed var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.dash-save-status {
+  color: var(--success);
+  font-size: 0.78rem;
+}
+
+.dash-payouts-nag {
+  color: var(--ink-dim);
+  font-size: 0.8rem;
+  background: rgba(160, 120, 255, 0.08);
+  border: 1px solid var(--card-line);
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+  margin: 0;
 }

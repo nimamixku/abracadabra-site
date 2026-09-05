@@ -62,7 +62,7 @@ export async function PATCH(req) {
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   if (!tenant) return NextResponse.json({ error: "No shop yet." }, { status: 400 });
 
-  const { bgColor, inkColor } = await req.json();
+  const { bgColor, inkColor, shopName } = await req.json();
 
   for (const [label, value] of [["bgColor", bgColor], ["inkColor", inkColor]]) {
     if (value !== undefined && value !== null && !HEX_COLOR_RE.test(value)) {
@@ -70,13 +70,31 @@ export async function PATCH(req) {
     }
   }
 
+  // Typed directly into the dashboard's own masthead (ShopNameEditor.js)
+  // -- same "edit it right where it's shown" pattern as the colors
+  // above, just for the shop's name instead of its palette. Blank is
+  // rejected rather than silently clearing the name a shop already has.
+  let normalizedShopName;
+  if (shopName !== undefined) {
+    normalizedShopName = String(shopName).trim();
+    if (!normalizedShopName) {
+      return NextResponse.json({ error: "Shop name can't be empty." }, { status: 400 });
+    }
+  }
+
   const { rows } = await query(
     `update tenants set
        bg_color = case when $2::text is distinct from '__unset__' then $2 else bg_color end,
-       ink_color = case when $3::text is distinct from '__unset__' then $3 else ink_color end
+       ink_color = case when $3::text is distinct from '__unset__' then $3 else ink_color end,
+       shop_name = case when $4::text is distinct from '__unset__' then $4 else shop_name end
      where id = $1
-     returning id, bg_color, ink_color`,
-    [tenant.id, bgColor === undefined ? "__unset__" : bgColor, inkColor === undefined ? "__unset__" : inkColor]
+     returning id, bg_color, ink_color, shop_name`,
+    [
+      tenant.id,
+      bgColor === undefined ? "__unset__" : bgColor,
+      inkColor === undefined ? "__unset__" : inkColor,
+      normalizedShopName === undefined ? "__unset__" : normalizedShopName,
+    ]
   );
   return NextResponse.json({ ok: true, tenant: rows[0] });
 }
