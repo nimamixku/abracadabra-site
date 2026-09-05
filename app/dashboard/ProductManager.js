@@ -371,6 +371,7 @@ function ProductCard({ product, tenantSlug, payoutsActive, onChanged, onRemoved 
         ) : (
           <div className={mediaEmptyClass} aria-hidden="true">
             <span className="tryit-card-plus">+</span>
+            <span className="tryit-card-plus-hint">drag &amp; drop or tap to upload</span>
           </div>
         )}
         {/* Crop tool trigger (photos) / replace button (video) -- the two
@@ -650,6 +651,7 @@ export default function ProductManager({ tenant }) {
   const [banner, setBanner] = useState("");
   const [phoneVisible, setPhoneVisible] = useState(true);
   const cardRefs = useRef({});
+  const phoneScreenRef = useRef(null);
   const payoutsActive = tenant?.stripe_connect_status === "active";
 
   async function loadProducts() {
@@ -668,6 +670,29 @@ export default function ProductManager({ tenant }) {
       cardRefs.current[id]?.scrollIntoView({ behavior: "smooth", block: "center" });
     });
   }
+
+  // The phone preview isn't independently scrollable -- it's a passive
+  // mirror that moves in lockstep with the real page as the artist
+  // scrolls the actual card list, same instinct as "mirrors the live
+  // cards" above but for scroll position too, not just content. Tracked
+  // as a plain fraction of how far down the page is scrolled, mapped
+  // onto the phone's own (much shorter) scrollable height, rather than
+  // trying to match scroll position pixel-for-pixel between two very
+  // differently sized lists.
+  useEffect(() => {
+    function syncPhoneScroll() {
+      const screen = phoneScreenRef.current;
+      if (!screen) return;
+      const doc = document.documentElement;
+      const scrollable = doc.scrollHeight - window.innerHeight;
+      const fraction = scrollable > 0 ? window.scrollY / scrollable : 0;
+      const phoneScrollable = screen.scrollHeight - screen.clientHeight;
+      screen.scrollTop = fraction * Math.max(0, phoneScrollable);
+    }
+    window.addEventListener("scroll", syncPhoneScroll, { passive: true });
+    syncPhoneScroll();
+    return () => window.removeEventListener("scroll", syncPhoneScroll);
+  }, [products, phoneVisible]);
 
   // Immediate create-on-drop: every group of dropped files is saved as a
   // real draft product (active:false) right away, with its file(s)
@@ -917,7 +942,7 @@ export default function ProductManager({ tenant }) {
         {phoneVisible && (
           <div className="dash-phone-frame">
             <div className="dash-phone-notch" aria-hidden="true" />
-            <div className="dash-phone-screen">
+            <div className="dash-phone-screen" ref={phoneScreenRef}>
               {products.length === 0 ? (
                 <div className="dash-phone-empty">
                   Drop in a piece to see it here, the way a customer would.

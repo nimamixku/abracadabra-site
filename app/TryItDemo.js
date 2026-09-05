@@ -546,7 +546,12 @@ export default function TryItDemo({ variant = "interactive" }) {
                         className="tenant-card-media-empty tryit-card-empty tryit-card-donate"
                         aria-hidden="true"
                       >
-                        {!isAmbient && <span className="tryit-card-plus">+</span>}
+                        {!isAmbient && (
+                          <>
+                            <span className="tryit-card-plus">+</span>
+                            <span className="tryit-card-plus-hint">drag &amp; drop or tap to upload</span>
+                          </>
+                        )}
                       </div>
                     )
                   ) : slot.url ? (
@@ -566,7 +571,12 @@ export default function TryItDemo({ variant = "interactive" }) {
                     )
                   ) : (
                     <div className="tenant-card-media-empty tryit-card-empty" aria-hidden="true">
-                      {!isAmbient && <span className="tryit-card-plus">+</span>}
+                      {!isAmbient && (
+                        <>
+                          <span className="tryit-card-plus">+</span>
+                          <span className="tryit-card-plus-hint">drag &amp; drop or tap to upload</span>
+                        </>
+                      )}
                     </div>
                   )}
                   {slot.url && (
